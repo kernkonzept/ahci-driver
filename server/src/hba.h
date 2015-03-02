@@ -1,0 +1,141 @@
+/*
+ * Copyright (C) 2014 Kernkonzept GmbH.
+ * Author(s): Sarah Hoffmann <sarah.hoffmann@kernkonzept.com>
+ *
+ * This file is distributed under the terms of the GNU General Public
+ * License, version 2.  Please see the COPYING-GPL-2 file for details.
+ */
+#pragma once
+
+#include <l4/re/env>
+#include <l4/re/error_helper>
+#include <l4/re/util/cap_alloc>
+#include <l4/re/util/object_registry>
+#include <l4/vbus/vbus>
+#include <l4/vbus/vbus_pci>
+
+#include <array>
+#include <vector>
+#include <stdio.h>
+#include <cassert>
+
+#include "ahci_port.h"
+#include "ahci_types.h"
+#include "hw_mmio_register_block.h"
+
+namespace Ahci {
+
+/**
+ * Encapsulates one single AHCI host bridge adapter.
+ *
+ * Includes a server loop for handling device interrupts.
+ */
+class Hba : public L4::Irqep_t<Hba>
+{
+private:
+  /**
+   * Self-attaching IO memory.
+   */
+  struct Iomem
+  {
+    l4_addr_t vaddr;
+
+    Iomem(l4_addr_t phys_addr, L4::Cap<L4Re::Dataspace> iocap)
+    {
+      L4Re::chksys(L4Re::Env::env()->rm()->attach(&vaddr, L4_PAGESIZE,
+                                                  L4Re::Rm::Search_addr,
+                                                  iocap, phys_addr,
+                                                  L4_PAGESHIFT));
+    }
+
+    ~Iomem() { L4Re::Env::env()->rm()->detach(vaddr, 0); }
+
+    l4_addr_t port_base_address(unsigned num) const
+    {
+      return vaddr + Port_base + Port_size * num;
+    }
+
+    enum Mem_config
+    {
+      Port_base = 0x100,
+      Port_size = 0x80,
+    };
+ };
+
+public:
+  /**
+   * Create a new AHCI HBA from a vbus PCI device.
+   */
+  Hba(L4vbus::Pci_dev const &dev);
+
+  Hba(Hba const &) = delete;
+  Hba(Hba &&) = delete;
+
+  /**
+   * Return the capability register of the HBA.
+   */
+  Hba_features features() const { return Hba_features(_regs[Regs::Hba::Cap]); }
+
+  /**
+   * Return a pointer to the given port
+   *
+   * Note that a port object is always returned, even when no
+   * device is attached. It is the responsibility of the caller
+   * to check for the state of the port.
+   *
+   * \param portno Port number.
+   */
+  Ahci_port *port(int portno) { return &_ports[portno]; }
+
+
+  /**
+   * Dispatch interrupts for the HBA to the ports.
+   */
+  void handle_irq();
+
+  /**
+   * Register the interrupt handler with a registry.
+   *
+   * \param icu      ICU to request the capability for the hardware interrupt.
+   * \param registry Registry that dispatches the interrupt IPCs.
+   *
+   * \throws L4::Runtime_error Resources are not available or accessible.
+   */
+  void register_interrupt_handler(L4::Cap<L4::Icu> icu,
+                                  L4Re::Util::Object_registry *registry);
+
+
+  /**
+   * Check ports for devices and initialize the once that are found.
+   *
+   * \param callback Function called for each port that was successfully
+   *                 initialised.
+   */
+  void scan_ports(std::function<void(Ahci_port *)> callback);
+
+  /**
+   * Test if a VBUS device is a AHCI HBA.
+   *
+   * \param dev      VBUS device to test.
+   * \param dev_info Device information as returned by next_device()
+   */
+  static bool is_ahci_hba(L4vbus::Device const &dev,
+                          l4vbus_device_t const &dev_info);
+
+private:
+  l4_uint32_t cfg_read(l4_uint32_t reg) const
+  {
+    l4_uint32_t val;
+    L4Re::chksys(_dev.cfg_read(reg, &val, 32));
+
+    return val;
+  }
+
+  L4vbus::Pci_dev _dev;
+  Iomem _iomem;
+  Hw::Register_block<32> _regs;
+  unsigned char _irq_trigger_type;
+  std::array<Ahci_port, 32> _ports;
+};
+
+}

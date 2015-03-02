@@ -1,0 +1,3 @@
+provides: ahci-drv
+requires: libc libstdc++ libio l4virtio
+maintainer: sarah.hoffmann@kernkonzept.com
