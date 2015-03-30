@@ -40,7 +40,8 @@ Virtio_ahci::inout_request(Request *req, unsigned flags)
           if (ret < 0 || ds_size < (l4_size_t) b.mem->ds()->size())
             {
               b.mem->_phys = 0;
-              info.printf("Cannot resolve physical address for 0x%x (ret = %u, %u < %u.\n", off, ret, ds_size, (l4_size_t) b.mem->ds()->size());
+              info.printf("Cannot resolve physical address for 0x%zx (ret = %u, %zu < %zu.\n",
+                          off, ret, ds_size, (l4_size_t) b.mem->ds()->size());
               return ret;
             }
         }

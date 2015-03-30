@@ -136,11 +136,13 @@ Partition_reader::read_gpt(int error, l4_size_t)
 #if (__BYTE_ORDER == __BIG_ENDIAN)
 #error("Big endian not implemented.")
 #else
-              snprintf(inf.guid, 37, "%08X-%04hX-%04hX-%02hhX%02hhX-"
-                                     "%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX",
-                       guid[0], guid[1], guid[1] >> 16,
-                       guid[2], guid[2] >> 8, guid[2] >> 16, guid[2] >> 24,
-                       guid[3], guid[3] >> 8, guid[3] >> 16, guid[3] >> 24);
+              snprintf(inf.guid, 37, "%08X-%04X-%04X-%02X%02X-"
+                                     "%02X%02X%02X%02X%02X%02X",
+                       guid[0], guid[1] & 0xffff, (guid[1] >> 16) & 0xffff,
+                       guid[2] & 0xff, (guid[2] >> 8) & 0xff,
+                       (guid[2] >> 16) & 0xff, (guid[2] >> 24) & 0xff,
+                       guid[3] & 0xff, (guid[3] >> 8) & 0xff,
+                       (guid[3] >> 16) & 0xff, (guid[3] >> 24) & 0xff);
 #endif
 
               inf.first = e->first;

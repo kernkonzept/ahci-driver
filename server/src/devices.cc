@@ -179,7 +179,7 @@ Ata::Device::start_device_scan(Errand::Callback const &callback)
                     info.printf("LBA: %s  DMA: %s\n",
                                 _devinfo.features.lba ? "yes": "no",
                                 _devinfo.features.dma ? "yes": "no");
-                    info.printf("Number of sectors: %llu sector size: %u\n",
+                    info.printf("Number of sectors: %llu sector size: %zu\n",
                                 _devinfo.num_sectors, _devinfo.sector_size);
                   }
                 callback();
