@@ -462,29 +462,33 @@ class Register_block_impl;
 
 
 template< typename BASE >
-struct Register_block_impl<BASE, 8> : public Register_block_base<8>
+class Register_block_impl<BASE, 8> : public Register_block_base<8>
 {
+public:
   REGBLK_IMPL_RW_TEMPLATE(8);
 };
 
 template< typename BASE >
-struct Register_block_impl<BASE, 16> : public Register_block_base<16>
+class Register_block_impl<BASE, 16> : public Register_block_base<16>
 {
+public:
   REGBLK_IMPL_RW_TEMPLATE(8);
   REGBLK_IMPL_RW_TEMPLATE(16);
 };
 
 template< typename BASE >
-struct Register_block_impl<BASE, 32> : public Register_block_base<32>
+class Register_block_impl<BASE, 32> : public Register_block_base<32>
 {
+public:
   REGBLK_IMPL_RW_TEMPLATE(8);
   REGBLK_IMPL_RW_TEMPLATE(16);
   REGBLK_IMPL_RW_TEMPLATE(32);
 };
 
 template< typename BASE >
-struct Register_block_impl<BASE, 64> : public Register_block_base<64>
+class Register_block_impl<BASE, 64> : public Register_block_base<64>
 {
+public:
   REGBLK_IMPL_RW_TEMPLATE(8);
   REGBLK_IMPL_RW_TEMPLATE(16);
   REGBLK_IMPL_RW_TEMPLATE(32);
