@@ -31,7 +31,7 @@ Virtio_ahci::inout_request(Request *req, unsigned flags)
         {
           auto ds = _ahcidev->dma_space();
           l4_size_t ds_size = b.mem->ds()->size();
-          ret = ds->map(b.mem->ds(), 0, &ds_size,
+          ret = ds->map(L4::Ipc::make_cap_rw(b.mem->ds()), 0, &ds_size,
                         L4Re::Dma_space::Attributes::None,
                         (flags & Fis::Chf_write)
                         ? L4Re::Dma_space::Direction::To_device

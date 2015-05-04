@@ -19,8 +19,11 @@
 #include <l4/re/env.h>
 #include <l4/cxx/ipc_timeout_queue>
 #include <l4/cxx/ref_ptr>
+#include <l4/cxx/exceptions>
 
 #include <functional>
+
+#include "debug.h"
 
 /**
  * Functions for writing blocking functions.
@@ -48,13 +51,20 @@ public:
     // Recapture the reference pointer from the timeout queue.
     cxx::Ref_ptr<Poll_errand> p(this, false);
 
-    if (_poll())
-      _callback(true);
-    else
-        if (--_retries <= 0)
-          _callback(false);
+    try
+      {
+        if (_poll())
+          _callback(true);
         else
-          reschedule();
+            if (--_retries <= 0)
+              _callback(false);
+            else
+              reschedule();
+      }
+    catch (L4::Runtime_error const &e)
+      {
+        error.printf("Polling task failed: %s\n", e.str());
+      }
   }
 
 
@@ -109,7 +119,16 @@ public:
     cxx::Ref_ptr<Errand> p(this, false);
 
     if (_callback)
-      _callback();
+      {
+        try
+          {
+            _callback();
+          }
+        catch (L4::Runtime_error const &e)
+          {
+            error.printf("Asynchronous task failed: %s\n", e.str());
+          }
+      }
   }
 
   void reschedule(unsigned ms = 0)

@@ -36,7 +36,8 @@ public:
                  "Cannot allocate pinned memory.");
 
     L4Re::chksys(e->rm()->attach(&_region, sz, L4Re::Rm::Search_addr,
-                                 lcap.get(), 0, L4_PAGESHIFT),
+                                 L4::Ipc::make_cap_rw(lcap.get()), 0,
+                                 L4_PAGESHIFT),
                  "Out of virtual memory.");
 
     _cap = lcap;
@@ -56,7 +57,7 @@ public:
       unmap();
 
     l4_size_t phys_sz = _cap->size();
-    L4Re::chksys(dma_space->map(_cap.get(), 0, &phys_sz,
+    L4Re::chksys(dma_space->map(L4::Ipc::make_cap_rw(_cap.get()), 0, &phys_sz,
                                 L4Re::Dma_space::Attributes::None, dir,
                                 &_paddr),
                  "Unable to lock memory region for DMA.");
@@ -70,7 +71,8 @@ public:
 
   void unmap()
   {
-    L4Re::chksys(_dma_space->unmap(_cap.get(), 0, _cap->size(),
+    L4Re::chksys(_dma_space->unmap(L4::Ipc::make_cap_rw(_cap.get()), 0,
+                                   _cap->size(),
                                    L4Re::Dma_space::Attributes::None, _dir));
     _paddr = 0;
   }

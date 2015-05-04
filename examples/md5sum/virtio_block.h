@@ -61,7 +61,8 @@ public:
 
     auto *e = L4Re::Env::env();
     L4Re::chksys(e->rm()->attach(&_config, L4_PAGESIZE, L4Re::Rm::Search_addr,
-                                 _config_cap.get(), 0, L4_PAGESHIFT),
+                                 L4::Ipc::make_cap_rw(_config_cap.get()), 0,
+                                 L4_PAGESHIFT),
                  "Cannot attach config dataspace");
 
     L4Re::chksys(l4_error(e->factory()->create_irq(_guest_irq.get())),
@@ -151,7 +152,7 @@ public:
                   l4_umword_t size, l4_uint64_t *devaddr)
   {
     *devaddr = next_device_address(size);
-    return _device->register_ds(L4::Ipc::make_cap(ds, L4_CAP_FPAGE_RW), *devaddr, offset, size);
+    return _device->register_ds(L4::Ipc::make_cap_rw(ds), *devaddr, offset, size);
   }
 
   /**
@@ -350,7 +351,7 @@ public:
     // Now sort out which region goes where in the dataspace.
     l4_addr_t baseaddr;
     L4Re::chksys(e->rm()->attach(&baseaddr, totalsz, L4Re::Rm::Search_addr,
-                                 _queue_ds, 0, L4_PAGESHIFT),
+                                 L4::Ipc::make_cap_rw(_queue_ds), 0, L4_PAGESHIFT),
                  "Cannot attach dataspace for virtio structures.");
 
     l4_uint64_t devaddr;

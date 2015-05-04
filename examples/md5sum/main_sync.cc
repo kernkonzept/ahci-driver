@@ -49,7 +49,7 @@ static void run()
   Md5_hash md5sum;
   l4_uint64_t pos;
 
-  for (pos = 0; pos < dsksz; pos += secperpage)
+  for (pos = 0; pos + secperpage < dsksz; pos += secperpage)
     {
       trace.printf("Reading sector %llu.\n", pos);
       h = c.start_request(pos, L4VIRTIO_BLOCK_T_IN, 0);

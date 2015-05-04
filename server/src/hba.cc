@@ -10,7 +10,6 @@
 #include <l4/re/dataspace>
 #include <l4/re/error_helper>
 #include <l4/re/util/cap_alloc>
-#include <l4/cxx/ipc_stream>
 
 #include <l4/vbus/vbus>
 #include <l4/vbus/vbus_pci>

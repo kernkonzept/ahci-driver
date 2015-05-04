@@ -36,7 +36,8 @@ public:
                  "Cannot allocate pinned memory.");
 
     L4Re::chksys(e->rm()->attach(&_region, sz, L4Re::Rm::Search_addr,
-                                 lcap.get(), 0, L4_PAGESHIFT),
+                                 L4::Ipc::make_cap_rw(lcap.get()), 0,
+                                 L4_PAGESHIFT),
                  "Out of virtual memory.");
 
     _cap = lcap;

@@ -44,8 +44,8 @@ private:
     {
       L4Re::chksys(L4Re::Env::env()->rm()->attach(&vaddr, L4_PAGESIZE,
                                                   L4Re::Rm::Search_addr,
-                                                  iocap, phys_addr,
-                                                  L4_PAGESHIFT));
+                                                  L4::Ipc::make_cap_rw(iocap),
+                                                  phys_addr, L4_PAGESHIFT));
     }
 
     ~Iomem() { L4Re::Env::env()->rm()->detach(vaddr, 0); }

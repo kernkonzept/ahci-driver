@@ -215,12 +215,18 @@ Ata::Device::inout_data(l4_uint64_t sector, Fis::Datablock const data[],
 
       // data blocks must write full sectors
       if (numsec % _devinfo.sector_size)
-        return -L4_EINVAL;
+        {
+          trace.printf("Client error: Bad data block alignment: %zu.\n", numsec);
+          return -L4_EINVAL;
+        }
 
       // check that 32bit devices get only 32bit addresses
       if ((sizeof(l4_addr_t) == 8) && !_devinfo.features.s64a
           && (sector >= 0x100000000L))
-        return -L4_EINVAL;
+        {
+          trace.printf("Client error: 64bit address for 32bit device\n");
+          return -L4_EINVAL;
+        }
     }
 
   numsec /= _devinfo.sector_size;
@@ -228,7 +234,10 @@ Ata::Device::inout_data(l4_uint64_t sector, Fis::Datablock const data[],
   if (_devinfo.features.longaddr)
     {
       if (numsec <= 0 || numsec > 65536 || sector > ((l4_uint64_t)1 << 48))
-        return -L4_EINVAL;
+        {
+          trace.printf("Client error: sector number out of range.\n");
+          return -L4_EINVAL;
+        }
 
       if (numsec == 65536)
         numsec = 0;
@@ -236,7 +245,10 @@ Ata::Device::inout_data(l4_uint64_t sector, Fis::Datablock const data[],
   else
     {
       if (numsec <= 0 || numsec > 256 || sector > (1 << 28))
-        return -L4_EINVAL;
+        {
+          trace.printf("Client error: invalid sector number\n");
+          return -L4_EINVAL;
+        }
 
       if (numsec == 256)
         numsec = 0;

@@ -8,7 +8,6 @@
 
 #include <l4/re/env>
 #include <l4/re/error_helper>
-#include <l4/cxx/ipc_stream>
 
 #include <l4/vbus/vbus>
 #include <l4/vbus/vbus_pci.h>
@@ -148,7 +147,7 @@ void
 Ahci_port::initialize_memory(unsigned maxslots)
 {
   if (_state != S_attached)
-    L4Re::chksys(-L4_EIO, "Device enountered fatal error.");
+    L4Re::chksys(-L4_EIO, "Device encountered fatal error.");
 
   if (_devtype == Ahcidev_none)
     L4Re::chksys(-L4_ENODEV, "Device no longer available.");
