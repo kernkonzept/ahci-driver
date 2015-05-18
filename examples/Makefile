@@ -1,6 +1,6 @@
 PKGDIR		?= ..
 L4DIR		?= $(PKGDIR)/../..
 
-TARGET = md5sum mmap
+TARGET = md5sum
 
 include $(L4DIR)/mk/subdir.mk
