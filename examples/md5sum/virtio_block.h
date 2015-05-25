@@ -65,7 +65,7 @@ public:
                                  L4_PAGESHIFT),
                  "Cannot attach config dataspace");
 
-    L4Re::chksys(l4_error(e->factory()->create_irq(_guest_irq.get())),
+    L4Re::chksys(l4_error(e->factory()->create(_guest_irq.get())),
                  "Cannot create guest irq");
 
     L4Re::chksys(_device->register_iface(_guest_irq.get(), _host_irq.get(),
