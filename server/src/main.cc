@@ -129,7 +129,7 @@ run(int argc, char *const *argv)
 
   // set up the hardware devices
   auto vbus = L4Re::chkcap(L4Re::Env::env()->get_cap<L4vbus::Vbus>("vbus"),
-                           "Error getting vm_bus capability", -L4_ENOENT);
+                           "getting 'vbus' capability", -L4_ENOENT);
 
   // XXX ICU allocation really should be wrapped in libvbus somewhere instead
   // of being duplicated all over the place.
@@ -156,13 +156,17 @@ main(int argc, char *const *argv)
     {
       return run(argc, argv);
     }
+  catch (L4::Runtime_error const &e)
+    {
+      info.printf("%s while %s.\n", e.str(), e.extra_str());
+    }
   catch (L4::Base_exception const &e)
     {
-      info.printf("Error: %s", e.str());
+      info.printf("Error: %s\n", e.str());
     }
   catch (std::exception const &e)
     {
-      info.printf("Error: %s", e.what());
+      info.printf("Error: %s\n", e.what());
     }
 
   return -1;
