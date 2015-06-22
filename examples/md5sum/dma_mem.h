@@ -25,9 +25,8 @@ public:
   void alloc(l4_size_t sz)
   {
     sz *= sizeof(T);
-    L4Re::Util::Auto_cap<L4Re::Dataspace>::Cap lcap;
-    lcap = L4Re::chkcap(L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>(),
-                        "Out of capability memory.");
+    auto lcap = L4Re::chkcap(L4Re::Util::make_auto_cap<L4Re::Dataspace>(),
+                             "Out of capability memory.");
 
     auto *e = L4Re::Env::env();
     L4Re::chksys(e->mem_alloc()->alloc(sz, lcap.get(),
