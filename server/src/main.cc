@@ -14,6 +14,7 @@
 
 #include <unistd.h>
 
+#include "hba.h"
 #include "ahci.h"
 #include "devices.h"
 #include "virtio_ahci.h"
@@ -22,7 +23,12 @@
 
 static Dbg trace(Dbg::Trace, "main");
 
-static char const *usage_str = "Usage: %s [-v] [cap,disk_id,num_ds] ...\n";
+static char const *usage_str =
+"Usage: %s [-v] [-A] [cap,disk_id,num_ds] ...\n\n"
+"Options:\n"
+" -v   Verbose mode.\n"
+" -A   Disable check for address width of device.\n"
+"      Only do this if all physical memory is guaranteed to be below 4GB\n";
 
 class Loop_hooks
 : public L4::Ipc_svr::Timeout_queue_hooks<Loop_hooks, L4Re::Util::Br_manager>,
@@ -39,7 +45,7 @@ parse_args(int argc, char *const *argv)
 {
   for (;;)
     {
-      int opt = getopt(argc, argv, "v");
+      int opt = getopt(argc, argv, "vA");
       if (opt == -1)
         break;
 
@@ -47,6 +53,9 @@ parse_args(int argc, char *const *argv)
         {
         case 'v':
           Dbg::set_level(0xff);
+          break;
+        case 'A':
+          Ahci::Hba::check_address_width = false;
           break;
         default:
           info.printf(usage_str, argv[0]);

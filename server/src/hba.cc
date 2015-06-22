@@ -24,6 +24,8 @@ static Dbg trace(Dbg::Trace, "hba");
 
 namespace Ahci {
 
+bool Hba::check_address_width = true;
+
 Hba::Hba(L4vbus::Pci_dev const &dev)
 : _dev(dev),
   _iomem(cfg_read(0x24) & 0xFFFFF000,
@@ -40,11 +42,10 @@ Hba::Hba(L4vbus::Pci_dev const &dev)
   // setup ports
   Hba_features feats = features();
 
-  // TODO at the moment we cannot specifically request memory below 4GB
-  // from our dataspace manager. Therefore, fail fatally if a HBA only
-  // capable of 32bit addressing is detected on a 64bit system.
-  if (sizeof(l4_addr_t) == 8 && !feats.s64a())
-    L4Re::chksys(-L4_ENOSYS, "Cannot address 32bit devices on 64bit system");
+  if (check_address_width && sizeof(l4_addr_t) == 8 && !feats.s64a())
+    L4Re::chksys(-L4_ENOSYS,
+                 "Cannot address 32bit devices on 64bit system. "
+                 "Start driver with -A to disable test.");
 
   l4_uint32_t ports = _regs[Regs::Hba::Pi];
   trace.printf("Port information: 0x%x\n", ports);

@@ -31,8 +31,8 @@ static void run()
   auto cap = L4Re::chkcap(L4Re::Env::env()->get_cap<L4virtio::Device>("dsk"),
                           "expecting disk driver at capability 'dsk'.", 0);
 
-  static_assert(L4_PAGESIZE >= 512,
-                "Not implemented for page size of less than 512 bytes.");
+  static_assert(L4_PAGESIZE % 512 == 0,
+                "Not implemented for page sizes not a multiple of 512 bytes.");
 
   L4virtio::Driver::Block_device c;
   void *block;

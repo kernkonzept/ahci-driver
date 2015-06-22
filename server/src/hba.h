@@ -122,6 +122,16 @@ public:
   static bool is_ahci_hba(L4vbus::Device const &dev,
                           l4vbus_device_t const &dev_info);
 
+  /**
+   * Check that address width of CPU and device are compatible.
+   *
+   * At the moment the HBA cannot specifically request memory below 4GB
+   * from the dataspace manager. Therefore, it refuses to drive devices
+   * on 64bit systems that are only capable of 32-bit addressing.
+   * In practice, most systems will have their physical memory below
+   * 4GB anyway, so this flag may be used to explicitly skip this check.
+   */
+  static bool check_address_width;
 private:
   l4_uint32_t cfg_read(l4_uint32_t reg) const
   {

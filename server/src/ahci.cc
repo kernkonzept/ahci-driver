@@ -50,8 +50,7 @@ Ahci_virtio_driver::start_device_discovery(L4::Cap<L4vbus::Vbus> bus,
             }
           catch (L4::Runtime_error const &e)
             {
-              error.printf("Fatal error during HBA initialization: %s\n",
-                           e.str());
+              error.printf("%s: %s\n", e.str(), e.extra_str());
               continue;
             }
 
