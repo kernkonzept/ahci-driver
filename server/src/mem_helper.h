@@ -70,7 +70,7 @@ public:
 
   void unmap()
   {
-    L4Re::chksys(_dma_space->unmap(L4::Ipc::make_cap_rw(_cap.get()), 0,
+    L4Re::chksys(_dma_space->unmap(_paddr,
                                    _cap->size(),
                                    L4Re::Dma_space::Attributes::None, _dir));
     _paddr = 0;
