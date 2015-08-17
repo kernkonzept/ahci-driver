@@ -51,7 +51,8 @@ static void run()
 
   for (pos = 0; pos + secperpage < dsksz; pos += secperpage)
     {
-      trace.printf("Reading sector %llu.\n", pos);
+      auto &out = (pos % 100 == 0) ? info : trace;
+      out.printf("Reading sector %llu.\n", pos);
       h = c.start_request(pos, L4VIRTIO_BLOCK_T_IN, 0);
       if (!h.valid())
         L4Re::chksys(-L4_ENOMEM);
@@ -63,7 +64,7 @@ static void run()
   if (pos < dsksz)
     {
       l4_size_t remain = 512 * (dsksz - pos);
-      trace.printf("Reading remaining sector %llu with size %u.\n", pos, remain);
+      trace.printf("Reading remaining sector %llu with size %zu.\n", pos, remain);
       h = c.start_request(pos, L4VIRTIO_BLOCK_T_IN, 0);
       if (!h.valid())
         L4Re::chksys(-L4_ENOMEM);
@@ -78,7 +79,7 @@ static void run()
 
 int main(int , char *const *)
 {
-  L4Re::Util::Dbg::set_level(0xef);
+  L4Re::Util::Dbg::set_level(0xfe);
   try
     {
       run();

@@ -77,7 +77,8 @@ static int read_next_sector()
       return ret;
     }
 
-  trace.printf("Done writing sector %llu\n", next_sector);
+  auto &out = (next_sector % 100 == 0) ? info : trace;
+  out.printf("Done writing sector %llu\n", next_sector);
   ++next_sector;
 
   return L4_EOK;
@@ -150,7 +151,7 @@ static void setup(L4Re::Util::Object_registry *registry)
 
 int main(int , char *const *)
 {
-  L4Re::Util::Dbg::set_level(0xef);
+  L4Re::Util::Dbg::set_level(0xfe);
   try
     {
       L4Re::Util::Registry_server<> server;
