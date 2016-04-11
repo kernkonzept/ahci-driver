@@ -1,7 +1,7 @@
 PKGDIR ?= ../..
 L4DIR  ?= $(PKGDIR)/../..
 
-SYSTEMS    := x86-l4f amd64-l4f arm-l4f
+SYSTEMS    := x86-l4f amd64-l4f
 
 TEST_GROUP    := ahci-driver/examples
 
