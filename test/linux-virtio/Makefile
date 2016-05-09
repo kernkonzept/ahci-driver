@@ -14,7 +14,7 @@ TEST_TARGET_virtio_read  := virtio_read.sh
 IMAGE_FILE     = $(OBJ_DIR)/test_ahci.img
 TEST_SETUP     = $(SRC_DIR)/../examples/create-test-disk.sh $(IMAGE_FILE)
 
-REQUIRED_MODS := l4linux-ahci.io io ahci-drv
+REQUIRED_MODULES := l4linux-ahci.io io ahci-drv
 MOE_CFG       := l4linux-ahci.cfg
 
 QEMU_ARGS      = -device ahci,id=ahci0 -drive if=none,file=$(IMAGE_FILE),format=raw,id=drive-sata0-0-0 -device ide-drive,bus=ahci0.0,drive=drive-sata0-0-0,id=sata0-0-0
