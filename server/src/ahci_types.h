@@ -19,7 +19,7 @@ struct Hba_features
 {
   l4_uint32_t raw;
   CXX_BITFIELD_MEMBER_RO(31, 31, s64a, raw); ///< 64-bit Addressing
-  CXX_BITFIELD_MEMBER_RO(30, 30, sncq, raw); ///< Native Command Queuing
+  CXX_BITFIELD_MEMBER_RO(30, 30, sncq, raw); ///< Native Command Queueing
   CXX_BITFIELD_MEMBER_RO(29, 29, ssntf, raw);///< Supports SNotification Register
   CXX_BITFIELD_MEMBER_RO(28, 28, smps, raw); ///< Supports Mechanical Presence Switch
   CXX_BITFIELD_MEMBER_RO(27, 27, sss, raw);  ///< Supports Staggered Spin-up

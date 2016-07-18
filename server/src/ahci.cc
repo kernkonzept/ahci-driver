@@ -63,7 +63,7 @@ Ahci_virtio_driver::start_device_discovery(L4::Cap<L4vbus::Vbus> bus,
                   {
                     auto conn = create_connection(cxx::unique_ptr<Ahci_device>(d));
                     conn->start_disk_scan([=]() { connect_static_clients(conn); });
-                   }
+                  }
               });
         }
     }
