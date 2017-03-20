@@ -75,8 +75,8 @@ public:
     if (memcmp(&_config->magic, "virt", 4) != 0)
       L4Re::chksys(-L4_ENODEV, "Device config has wrong magic value");
 
-    if (_config->version != 1)
-      L4Re::chksys(-L4_ENODEV, "Invalid virtio version, must be 1");
+    if (_config->version != 2)
+      L4Re::chksys(-L4_ENODEV, "Invalid virtio version, must be 2");
 
     _device->set_status(0); // reset
     int status = L4VIRTIO_STATUS_ACKNOWLEDGE;
@@ -87,8 +87,6 @@ public:
 
     if (_config->status & L4VIRTIO_STATUS_FAILED)
       L4Re::chksys(-L4_EIO, "Device failure during initialisation.");
-
-    _config->guest_page_size = L4_PAGESIZE;
   }
 
   /**
@@ -120,7 +118,8 @@ public:
    */
   int driver_acknowledge()
   {
-    _config->guest_features[0] = _config->host_features[0];
+    _config->driver_features_map[0] = _config->dev_features_map[0];
+    _config->driver_features_map[1] = _config->dev_features_map[1];
 
     _device->set_status(_config->status | L4VIRTIO_STATUS_DRIVER_OK);
 
@@ -158,17 +157,21 @@ public:
   /**
    * Send the virtqueue configuration to the device.
    *
-   * \param  num   Number of queue to configure.
-   * \param  size  Size of rings in the queue, must be a power of 2)
-   * \param  align Alignment for the used ring (must be a power of 2)
-   * \param  base  Base address of queue (in device address space)
+   * \param  num         Number of queue to configure.
+   * \param  size        Size of rings in the queue, must be a power of 2)
+   * \param  desc_addr   Address of descriptor table (device address)
+   * \param  avail_addr  Address of available ring (device address)
+   * \param  used_addr   Address of used ring (device address)
    */
-  int config_queue(int num, unsigned size, l4_uint32_t align, l4_uint64_t base)
+  int config_queue(int num, unsigned size, l4_uint64_t desc_addr,
+                   l4_uint64_t avail_addr, l4_uint64_t used_addr)
   {
     auto *queueconf = &_config->queues()[num];
     queueconf->num = size;
-    queueconf->align = align;
-    queueconf->pfn = base >> L4_PAGESHIFT;
+    queueconf->desc_addr = desc_addr;
+    queueconf->avail_addr = avail_addr;
+    queueconf->used_addr = used_addr;
+    queueconf->ready = 1;
 
     return _device->config_queue(num);
   }
@@ -338,7 +341,7 @@ public:
 
     // reserve space for one header/status per descriptor
     // TODO Should be reduced to 1/3 but this way no freelist is needed.
-    totalsz += l4_round_page(_queue.total_size(queuesz, L4_PAGESIZE)
+    totalsz += l4_round_page(_queue.total_size(queuesz)
                              + queuesz * (Header_size + 1));
 
     _queue_ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
@@ -358,8 +361,10 @@ public:
     L4Re::chksys(register_ds(_queue_ds, 0, totalsz, &devaddr),
                  "Cannot share virtio datastructures.");
 
-    _queue.init_queue(queuesz, L4_PAGESIZE, (void *) baseaddr);
-    config_queue(0, queuesz, L4_PAGESIZE, devaddr);
+    _queue.init_queue(queuesz, (void *) baseaddr);
+
+    config_queue(0, queuesz, devaddr, devaddr + _queue.avail_offset(),
+                 devaddr + _queue.used_offset());
 
     l4_uint64_t offset = _queue.total_size();
     _header_addr = devaddr + offset;
