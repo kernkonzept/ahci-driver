@@ -17,13 +17,21 @@ static Dbg trace(Dbg::Trace, "virtio-ahci");
 namespace Ahci {
 
 int
-Virtio_ahci::inout_request(Request *req, unsigned flags)
+Virtio_ahci::build_datablocks(Request *req, std::vector<Fis::Datablock> *blocks)
 {
-  std::vector<Fis::Datablock> blocks;
-
-  int ret;
-  for (auto &b : req->data)
+  while (req->has_more())
     {
+      Request::Data_block b;
+
+      try
+        {
+          b = req->next_block();
+        }
+      catch (L4virtio::Svr::Bad_descriptor const &e)
+        {
+          return -L4_EIO;
+        }
+
       l4_size_t off = b.mem->ds_offset() + (l4_addr_t) b.addr
                       - (l4_addr_t) b.mem->local_base();
 
@@ -31,12 +39,12 @@ Virtio_ahci::inout_request(Request *req, unsigned flags)
         {
           auto ds = _ahcidev->dma_space();
           l4_size_t ds_size = b.mem->ds()->size();
-          ret = ds->map(L4::Ipc::make_cap_rw(b.mem->ds()), 0, &ds_size,
-                        L4Re::Dma_space::Attributes::None,
-                        (flags & Fis::Chf_write)
-                        ? L4Re::Dma_space::Direction::To_device
-                        : L4Re::Dma_space::Direction::From_device,
-                        &b.mem->_phys);
+          auto ret = ds->map(L4::Ipc::make_cap_rw(b.mem->ds()), 0, &ds_size,
+                             L4Re::Dma_space::Attributes::None,
+                             req->header().type == L4VIRTIO_BLOCK_T_OUT
+                             ? L4Re::Dma_space::Direction::To_device
+                             : L4Re::Dma_space::Direction::From_device,
+                             &b.mem->_phys);
           if (ret < 0 || ds_size < (l4_size_t) b.mem->ds()->size())
             {
               b.mem->_phys = 0;
@@ -46,10 +54,18 @@ Virtio_ahci::inout_request(Request *req, unsigned flags)
             }
         }
 
-      blocks.push_back(Fis::Datablock(b.mem->_phys + off, b.len));
+      blocks->push_back(Fis::Datablock(b.mem->_phys + off, b.len));
     }
 
-  l4_uint64_t sector = req->header.sector
+  return L4_EOK;
+}
+
+int
+Virtio_ahci::inout_request(Request *req,
+                           std::vector<Fis::Datablock> const &blocks,
+                           unsigned flags)
+{
+  l4_uint64_t sector = req->header().sector
                        / (_ahcidev->device_info().sector_size >> 9);
 
   using namespace std::placeholders;
@@ -61,39 +77,41 @@ Virtio_ahci::inout_request(Request *req, unsigned flags)
 
 
 bool
-Virtio_ahci::process_request(cxx::unique_ptr<Request> req)
+Virtio_ahci::process_request(cxx::unique_ptr<Request> &&req)
 {
   trace.printf("request received: type 0x%x, sector 0x%llx\n",
-               req->header.type, req->header.sector);
+               req->header().type, req->header().sector);
   unsigned flags = 0;
-  switch (req->header.type)
+  switch (req->header().type)
     {
     case L4VIRTIO_BLOCK_T_OUT:
       flags |= Fis::Chf_write;
     case L4VIRTIO_BLOCK_T_IN:
       {
-        int ret = inout_request(req.get(), flags);
+        Pending_request pending;
+        int ret = build_datablocks(req.get(), &pending.blocks);
+        if (ret >= 0)
+          ret = inout_request(req.get(), pending.blocks, flags);
         if (ret == -L4_EBUSY)
           {
             trace.printf("Port busy, queueing request.\n");
-            _pending.push(std::move(req));
+            pending.request = std::move(req);
+            _pending.push(std::move(pending));
             return false;
           }
         else if (ret < 0)
           {
             trace.printf("Got IO error: %d\n", ret);
-            req->status = L4VIRTIO_BLOCK_S_IOERR;
-            finalize_request(std::move(req), 0);
+            finalize_request(std::move(req), 0, L4VIRTIO_BLOCK_S_IOERR);
           }
         else
+          // request has been successfully sent to hardware
+          // which now has ownership of Request pointer, so release here
           req.release();
         break;
       }
     default:
-      {
-        req->status = L4VIRTIO_BLOCK_S_UNSUPP;
-        finalize_request(std::move(req), 0);
-      }
+      finalize_request(std::move(req), 0, L4VIRTIO_BLOCK_S_UNSUPP);
     }
 
   return true;
