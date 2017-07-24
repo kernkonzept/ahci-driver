@@ -40,7 +40,6 @@ Ahci_virtio_driver::start_device_discovery(L4::Cap<L4vbus::Vbus> bus,
       trace.printf("Scanning child 0x%lx.\n", child.dev_handle());
       if (Hba::is_ahci_hba(child, di))
         {
-          cxx::unique_ptr<Hba> hba;
           try
             {
               cxx::unique_ptr<Hba> hba = cxx::make_unique<Hba>(child);
