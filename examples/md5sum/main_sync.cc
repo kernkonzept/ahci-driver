@@ -55,9 +55,11 @@ static void run()
       out.printf("Reading sector %llu.\n", pos);
       h = c.start_request(pos, L4VIRTIO_BLOCK_T_IN, 0);
       if (!h.valid())
-        L4Re::chksys(-L4_ENOMEM);
-      L4Re::chksys(c.add_block(h, devaddr, L4_PAGESIZE));
-      L4Re::chksys(c.process_request(h));
+        L4Re::chksys(-L4_ENOMEM, "Starting new request");
+      L4Re::chksys(c.add_block(h, devaddr, L4_PAGESIZE),
+                   "Add receiver block");
+      L4Re::chksys(c.process_request(h),
+                   "Process incomming block");
       md5sum.update(static_cast<unsigned char *>(block), L4_PAGESIZE);
     }
 
@@ -85,6 +87,10 @@ int main(int , char *const *)
       run();
 
       return 0;
+    }
+  catch (L4::Runtime_error const &e)
+    {
+      L4::cerr << e.str() << ":  " << e.extra_str() << "\n";
     }
   catch (L4::Base_exception const &e)
     {

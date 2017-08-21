@@ -196,7 +196,7 @@ public:
    * synchronously. It must not be used with other requests at the same
    * time as it directly waits for a notification on the device irq cap.
    */
-  int send_and_wait(Virtqueue &queue, int descno)
+  int send_and_wait(Virtqueue &queue, l4_uint16_t descno)
   {
     // send the request away
     queue.enqueue_descriptor(descno);
@@ -212,8 +212,8 @@ public:
         if (err < 0)
           return err;
 
-        int head = queue.find_next_used();
-        if (head >= 0) // may be null if there was a spurious interrupt
+        auto head = queue.find_next_used();
+        if (head != Virtqueue::Eoq) // spurious interrupt?
           return (head == descno) ? L4_EOK : -L4_EINVAL;
       }
   }
@@ -224,7 +224,7 @@ public:
    * \param queue  Queue that contains the request in its descriptor table
    * \param descno Index of first entry in descriptor table where
    */
-  void send(Virtqueue &queue, int descno)
+  void send(Virtqueue &queue, l4_uint16_t descno)
   {
     queue.enqueue_descriptor(descno);
     if (!queue.no_notify_host())
@@ -485,7 +485,7 @@ public:
   int send_request(Handle handle)
   {
     // add the status bit
-    l4_uint16_t descno = _queue.alloc_descriptor();
+    auto descno = _queue.alloc_descriptor();
     if (descno == Virtqueue::Eoq)
       return -L4_ENOMEM;
 
@@ -520,8 +520,8 @@ public:
   int process_request(Handle handle)
   {
     // add the status bit
-    int descno = _queue.alloc_descriptor();
-    if (descno < 0)
+    auto descno = _queue.alloc_descriptor();
+    if (descno == Virtqueue::Eoq)
       return descno;
 
     L4virtio::Virtqueue::Desc &desc = _queue.desc(descno);
