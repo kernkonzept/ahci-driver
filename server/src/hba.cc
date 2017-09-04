@@ -111,6 +111,7 @@ void
 Hba::handle_irq()
 {
   l4_uint32_t is = _regs[Regs::Hba::Is];
+  l4_uint32_t is_clear = is;
 
   for (auto &p : _ports)
     {
@@ -123,7 +124,7 @@ Hba::handle_irq()
     obj_cap()->unmask();
 
   // clear all status bits
-  _regs[Regs::Hba::Is] = is;
+  _regs[Regs::Hba::Is] = is_clear;
 }
 
 
