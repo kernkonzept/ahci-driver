@@ -48,7 +48,7 @@ Virtio_ahci::build_datablocks(Request *req, std::vector<Fis::Datablock> *blocks)
           if (ret < 0 || ds_size < (l4_size_t) b.mem->ds()->size())
             {
               b.mem->_phys = 0;
-              info.printf("Cannot resolve physical address for 0x%zx (ret = %u, %zu < %zu.\n",
+              info.printf("Cannot resolve physical address for 0x%zx (ret = %lu, %zu < %zu.\n",
                           off, ret, ds_size, (l4_size_t) b.mem->ds()->size());
               return ret;
             }
