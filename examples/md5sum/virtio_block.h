@@ -102,7 +102,7 @@ public:
    */
   int attach_guest_irq(L4::Cap<L4::Thread> const &cap)
   {
-    return l4_error(_guest_irq->attach(0, cap));
+    return l4_error(_guest_irq->bind_thread(cap, 0));
   }
 
   /// Return true if the device is in a fail state.
@@ -396,7 +396,7 @@ public:
    */
   void register_server(L4Re::Util::Object_registry *registry)
   {
-    registry->register_irq_obj(this, _guest_irq.get());
+    registry->register_obj(this, _guest_irq.get());
   }
 
   /**
