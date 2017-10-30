@@ -11,6 +11,7 @@
 #include <l4/cxx/utils>
 #include <l4/util/atomic.h>
 #include <l4/re/dma_space>
+#include <l4/re/util/unique_cap>
 #include <l4/sys/cache.h>
 #include <cassert>
 #include <vector>
@@ -277,7 +278,7 @@ public:
    * \param buswidth      Width of address bus.
    */
   int attach(l4_addr_t base_addr, unsigned buswidth,
-             L4Re::Util::Auto_cap<L4Re::Dma_space>::Cap &dma_space);
+             L4Re::Util::Unique_cap<L4Re::Dma_space> &&dma_space);
 
   /**
    * Set up the data structures for the AHCI data transfer.
@@ -489,7 +490,7 @@ private:
   std::vector<Command_slot> _slots;
   Port_regs _regs;
   Phys_region _cmd_data;
-  L4Re::Util::Auto_cap<L4Re::Dma_space>::Cap _dma_space;
+  L4Re::Util::Unique_cap<L4Re::Dma_space> _dma_space;
   unsigned char _buswidth;
 };
 

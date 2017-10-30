@@ -11,6 +11,7 @@
 #include <l4/re/dataspace>
 #include <l4/re/env>
 #include <l4/re/util/cap_alloc>
+#include <l4/re/util/unique_cap>
 #include <l4/re/util/object_registry>
 #include <l4/re/error_helper>
 #include <l4/cxx/ipc_server>
@@ -48,13 +49,13 @@ public:
   void driver_connect(L4::Cap<L4virtio::Device> srvcap)
   {
     _device = srvcap;
-    _guest_irq = L4Re::chkcap(L4Re::Util::cap_alloc.alloc<L4::Irq>(),
+    _guest_irq = L4Re::chkcap(L4Re::Util::make_unique_cap<L4::Irq>(),
                               "Cannot allocate guest IRQ");
 
-    _host_irq = L4Re::chkcap(L4Re::Util::cap_alloc.alloc<L4::Irq>(),
+    _host_irq = L4Re::chkcap(L4Re::Util::make_unique_cap<L4::Irq>(),
                              "Cannot allocate host irq");
 
-    _config_cap = L4Re::chkcap(L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>(),
+    _config_cap = L4Re::chkcap(L4Re::Util::make_unique_cap<L4Re::Dataspace>(),
                                "Cannot allocate cap for config dataspace");
 
     _next_devaddr = L4_SUPERPAGESIZE;
@@ -259,13 +260,13 @@ private:
 
 protected:
   L4::Cap<L4virtio::Device> _device;
-  L4Re::Rm::Auto_region<L4virtio::Device::Config_hdr *> _config;
+  L4Re::Rm::Unique_region<L4virtio::Device::Config_hdr *> _config;
   l4_umword_t _next_devaddr;
-  L4Re::Util::Auto_cap<L4::Irq>::Cap _guest_irq;
+  L4Re::Util::Unique_cap<L4::Irq> _guest_irq;
 
 private:
-  L4Re::Util::Auto_cap<L4::Irq>::Cap _host_irq;
-  L4Re::Util::Auto_cap<L4Re::Dataspace>::Cap _config_cap;
+  L4Re::Util::Unique_cap<L4::Irq> _host_irq;
+  L4Re::Util::Unique_cap<L4Re::Dataspace> _config_cap;
 };
 
 

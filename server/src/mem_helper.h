@@ -9,7 +9,7 @@
 
 #include <l4/re/error_helper>
 #include <l4/re/env>
-#include <l4/re/util/cap_alloc>
+#include <l4/re/util/unique_cap>
 #include <l4/re/rm>
 #include <l4/re/dma_space>
 #include <l4/cxx/ref_ptr>
@@ -25,7 +25,7 @@ public:
               L4Re::Dma_space::Direction dir)
   : _paddr(0)
   {
-    auto lcap = L4Re::chkcap(L4Re::Util::make_auto_cap<L4Re::Dataspace>(),
+    auto lcap = L4Re::chkcap(L4Re::Util::make_unique_cap<L4Re::Dataspace>(),
                              "Out of capability memory.");
 
     auto *e = L4Re::Env::env();
@@ -39,7 +39,7 @@ public:
                                  L4_PAGESHIFT),
                  "Out of virtual memory.");
 
-    _cap = lcap;
+    _cap = cxx::move(lcap);
 
     map(dma_space, dir);
   }
@@ -109,10 +109,10 @@ public:
   {
     if (this != &rhs)
       {
-        _cap = rhs._cap;
-        _region = rhs._region;
+        _cap = cxx::move(rhs._cap);
+        _region = cxx::move(rhs._region);
         _paddr = rhs._paddr;
-        _dma_space = rhs._dma_space;
+        _dma_space = cxx::move(rhs._dma_space);
         _dir = rhs._dir;
         rhs._paddr = 0;
       }
@@ -121,8 +121,8 @@ public:
   }
 
 private:
-  L4Re::Util::Auto_cap<L4Re::Dataspace>::Cap _cap;
-  L4Re::Rm::Auto_region<char *> _region;
+  L4Re::Util::Unique_cap<L4Re::Dataspace> _cap;
+  L4Re::Rm::Unique_region<char *> _region;
   L4::Cap<L4Re::Dma_space> _dma_space;
   L4Re::Dma_space::Dma_addr _paddr;
   L4Re::Dma_space::Direction _dir;

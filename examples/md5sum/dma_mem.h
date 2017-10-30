@@ -10,6 +10,7 @@
 #include <l4/re/error_helper>
 #include <l4/re/env>
 #include <l4/re/util/cap_alloc>
+#include <l4/re/util/unique_cap>
 #include <l4/re/rm>
 #include <l4/re/dataspace>
 #include <l4/l4virtio/virtqueue>
@@ -25,7 +26,7 @@ public:
   void alloc(l4_size_t sz)
   {
     sz *= sizeof(T);
-    auto lcap = L4Re::chkcap(L4Re::Util::make_auto_cap<L4Re::Dataspace>(),
+    auto lcap = L4Re::chkcap(L4Re::Util::make_unique_cap<L4Re::Dataspace>(),
                              "Out of capability memory.");
 
     auto *e = L4Re::Env::env();
@@ -39,7 +40,7 @@ public:
                                  L4_PAGESHIFT),
                  "Out of virtual memory.");
 
-    _cap = lcap;
+    _cap = cxx::move(lcap);
   }
 
   T *get() const { return _region.get(); }
@@ -54,7 +55,7 @@ public:
   void set_devaddr(l4_addr_t devaddr) { _paddr = devaddr; }
 
 private:
-  L4Re::Util::Auto_cap<L4Re::Dataspace>::Cap _cap;
-  L4Re::Rm::Auto_region<T *> _region;
+  L4Re::Util::Unique_cap<L4Re::Dataspace> _cap;
+  L4Re::Rm::Unique_region<T *> _region;
   l4_addr_t _paddr;
 };

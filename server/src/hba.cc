@@ -58,13 +58,13 @@ Hba::Hba(L4vbus::Pci_dev const &dev)
       if (ports & (1 << portno))
         {
           // create a separate dma space for the device
-          auto d = L4Re::chkcap(L4Re::Util::make_auto_cap<L4Re::Dma_space>());
+          auto d = L4Re::chkcap(L4Re::Util::make_unique_cap<L4Re::Dma_space>());
           L4Re::chksys(factory->create(d.get(), L4Re::Dma_space::Protocol));
           // XXX should ask IO for the proper dma space association
           L4Re::chksys(d->associate(L4::Cap<L4::Task>(),
                                     L4Re::Dma_space::Phys_space));
           // and prepare the port
-          p.attach(_iomem.port_base_address(portno), buswidth, d);
+          p.attach(_iomem.port_base_address(portno), buswidth, cxx::move(d));
           trace.printf("Registration of port %d done @0x%lx\n",
                        portno, _iomem.port_base_address(portno));
         }
