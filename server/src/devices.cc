@@ -9,6 +9,7 @@
 #include <l4/re/error_helper>
 
 #include <cstring>
+#include <algorithm>
 
 #include "devices.h"
 #include "debug.h"
@@ -82,16 +83,14 @@ Device_info::set(l4_uint16_t const *info)
   ata_minor_rev = info[IID_ata_minor_rev];
 
   // create HID from serial number
-  for (char *end = &serial_number[IID_serialnum_len-1];
-       end > serial_number;
-       --end)
-    {
-      if (*end != ' ')
-        {
-          hid = std::string(serial_number, end - serial_number + 1);
-          break;
-        }
-    }
+  hid = std::string(serial_number);
+  // trim whitespace from the beginning
+  hid.erase(hid.begin(), std::find_if(hid.begin(), hid.end(),
+                                      [](int c) { return !std::isspace(c); }));
+  // trim whitespace from the end
+  hid.erase(std::find_if(hid.rbegin(), hid.rend(),
+                         [](int c) { return !std::isspace(c); }).base(),
+            hid.end());
 
   features.lba = info[IID_capabilities] >> 9;
   features.dma = info[IID_capabilities] >> 8;
