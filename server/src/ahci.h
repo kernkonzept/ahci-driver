@@ -218,17 +218,9 @@ public:
    *
    * Registers a factory interface where new clients can be registered.
    */
-  Ahci_virtio_driver(L4Re::Util::Object_registry *registry,
-                     char const *server = 0)
+  Ahci_virtio_driver(L4Re::Util::Object_registry *registry)
   : _registry(registry), _available_devices(0)
-  {
-    // register main server (factory interface)
-    if (server)
-      L4Re::chkcap(registry->register_obj(this, server),
-                   "main server capability not found", 0);
-    else
-      L4Re::chkcap(registry->register_obj(this));
-  }
+  {}
 
   ~Ahci_virtio_driver()
   {

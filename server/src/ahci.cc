@@ -174,6 +174,10 @@ Ahci_virtio_driver::connect_static_clients(Impl::Connection *con)
       else
         ++it;
     }
+
+  if (_available_devices == _connpts.size())
+    if (_registry->register_obj(this, "svr") < 0)
+      warn.printf("Main server capability 'svr' not found. Client factory not available.");
 }
 
 } // namespace Ahci

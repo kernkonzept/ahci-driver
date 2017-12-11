@@ -129,8 +129,8 @@ run(int argc, char *const *argv)
   warn.printf("AHCI driver says hello.\n");
 
   L4Re::Util::Registry_server<Loop_hooks> server;
-  Ahci::Ahci_virtio_driver ahcidrv(server.registry(), "svr");
-  Errand::set_server_iface(ahcidrv.server_iface());
+  Ahci::Ahci_virtio_driver ahcidrv(server.registry());
+  Errand::set_server_iface(&server);
 
   // add static clients as stated on the command line
   for (int i = arg_idx; i < argc; ++i)
