@@ -47,7 +47,7 @@ struct Pending_client
 /**
  * A connection between a device and a potential client.
  */
-class Connection
+class Connection : public cxx::Ref_obj
 {
   /** The device itself. */
   cxx::unique_ptr<Ahci_device> _device;
@@ -220,7 +220,7 @@ public:
    */
   Ahci_virtio_driver(L4Re::Util::Object_registry *registry,
                      char const *server = 0)
-  : _registry(registry)
+  : _registry(registry), _available_devices(0)
   {
     // register main server (factory interface)
     if (server)
@@ -233,7 +233,7 @@ public:
   ~Ahci_virtio_driver()
   {
     for (auto &c : _connpts)
-      c.unregister_interfaces(_registry);
+      c->unregister_interfaces(_registry);
 
     _registry->unregister_obj(this);
   }
@@ -283,25 +283,16 @@ private:
   void connect_static_clients(Impl::Connection *con);
 
 
-  /**
-   * Add a device to the list of handled devices.
-   */
-  Impl::Connection *create_connection(cxx::unique_ptr<Ahci_device> dev)
-  {
-    _connpts.emplace_back(std::move(dev));
-
-    return &_connpts.back();
-  }
-
-
   /** Registry new client connections subscribe to. */
   L4Re::Util::Object_registry *_registry;
   /** List of AHCI HBAs under the control of the driver. */
   std::vector<cxx::unique_ptr<Hba>> _hbas;
   /** List of devices with their potential clients. */
-  std::vector<Impl::Connection> _connpts;
+  std::vector<cxx::Ref_ptr<Impl::Connection>> _connpts;
   /** List of clients waiting for a device to appear. */
   std::vector<Impl::Pending_client> _pending_clients;
+  /** Number of devices being scanned. */
+  l4_size_t _available_devices;
 };
 
 

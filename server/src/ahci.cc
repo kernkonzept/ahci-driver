@@ -60,8 +60,15 @@ Ahci_virtio_driver::start_device_discovery(L4::Cap<L4vbus::Vbus> bus,
 
                 if (d)
                   {
-                    auto conn = create_connection(cxx::unique_ptr<Ahci_device>(d));
-                    conn->start_disk_scan([=]() { connect_static_clients(conn); });
+                    auto conn = cxx::make_ref_obj<Impl::Connection>(
+                                  cxx::unique_ptr<Ahci_device>(d));
+                    ++_available_devices;
+                    conn->start_disk_scan(
+                      [=]()
+                        {
+                          _connpts.push_back(conn);
+                          connect_static_clients(conn.get());
+                        });
                   }
               });
         }
@@ -116,7 +123,7 @@ long Ahci_virtio_driver::op_create(L4::Factory::Rights rights,
   Virtio_ahci *va;
   for (auto &c : _connpts)
     {
-      int ret = c.create_interface_for(name, numds, &va);
+      int ret = c->create_interface_for(name, numds, &va);
       if (ret == L4_EOK)
         {
           // found the requested device
@@ -124,7 +131,7 @@ long Ahci_virtio_driver::op_create(L4::Factory::Rights rights,
 
           if (L4_UNLIKELY(!cap.is_valid()))
             {
-              c.release_interface(va);
+              c->release_interface(va);
               return -L4_ENOMEM;
             }
 
@@ -136,7 +143,7 @@ long Ahci_virtio_driver::op_create(L4::Factory::Rights rights,
         return ret;
     }
 
-  return -L4_ENODEV;
+  return (_available_devices > _connpts.size()) ? -L4_EAGAIN : -L4_ENODEV;
 }
 
 void
