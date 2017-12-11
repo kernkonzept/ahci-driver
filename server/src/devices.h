@@ -35,11 +35,11 @@ private:
   enum Identify_Device_Data
   {
     IID_serialnum_ofs           = 10,
-    IID_serialnum_len           = 10,
+    IID_serialnum_len           = 20,
     IID_firmwarerev_ofs         = 23,
-    IID_firmwarerev_len         = 4,
+    IID_firmwarerev_len         = 8,
     IID_modelnum_ofs            = 27,
-    IID_modelnum_len            = 20,
+    IID_modelnum_len            = 40,
     IID_capabilities            = 49,
     IID_addressable_sectors     = 60,
     IID_ata_major_rev           = 80,
@@ -55,11 +55,11 @@ public:
    *  For real devices the serial number, for partitions their UUID. */
   std::string hid;
   /** Serial number as reported by hardware device */
-  char serial_number[2 * IID_serialnum_len + 1];
+  char serial_number[IID_serialnum_len + 1];
   /** Model number as reported by hardware device */
-  char model_number[2 * IID_modelnum_len + 1];
+  char model_number[IID_modelnum_len + 1];
   /** Firmware revision as reported by hardware device */
-  char firmware_rev[2 * IID_firmwarerev_len + 1];
+  char firmware_rev[IID_firmwarerev_len + 1];
   /** Bitfield of supported ATA major revisions. */
   l4_uint16_t ata_major_rev;
   /** ATA version implemented by the device */
@@ -87,7 +87,14 @@ public:
 
 private:
   /**
-   * Helper function to convert AHCI ID strings. */
+   * Helper function to convert AHCI ID strings.
+   *
+   * param      id   Pointer to the start of the device info structure.
+   * param[out] s    Pointer to where the resulting string should be stored.
+   * param      ofs  Word (2-byte) offset within the device info structure from
+   *                 where the ID string should be retrieved.
+   * param      len  The length of the ID string in bytes.
+   */
   void id2str(l4_uint16_t const *id, char *s,
               unsigned int ofs, unsigned int len);
 };

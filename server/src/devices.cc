@@ -120,7 +120,8 @@ Device_info::id2str(l4_uint16_t const *id, char *s,
 {
   unsigned int c;
 
-  for (; len > 0; --len, ++ofs)
+  // we need to advance 2 bytes at a time because we handle two bytes per step
+  for (; len > 0; len = len - 2, ++ofs)
     {
       c = id[ofs] >> 8;
       s[0] = c;
