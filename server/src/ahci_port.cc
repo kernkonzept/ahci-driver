@@ -161,7 +161,7 @@ Ahci_port::initialize_memory(unsigned maxslots)
                           L4Re::Dma_space::Direction::Bidirectional);
   Command_data *cd = _cmd_data.get<Command_data>();
 
-  info.printf("Initializing port @0x%p.\n", _cmd_data.get<void>());
+  info.printf("Initializing port @%p.\n", _cmd_data.get<void>());
 
   // setup command list
   l4_addr_t addr = _cmd_data.phys() + offsetof(Command_data, headers);
