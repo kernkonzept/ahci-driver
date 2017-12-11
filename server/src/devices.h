@@ -22,7 +22,7 @@ namespace Ahci {
  * Structure with general information about the device.
  *
  * \note This is just an internal struct that collects information
- *       about the hradware configuration relevant for the driver.
+ *       about the hardware configuration relevant for the driver.
  */
 struct Device_info
 {
@@ -81,7 +81,7 @@ public:
   /**
    * Fill the structure with information from the device identification page.
    *
-   * \param info Pointer to device info structure supllied by AHCI controller.
+   * \param info  Pointer to device info structure supplied by AHCI controller.
    */
   void set(l4_uint16_t const *info);
 

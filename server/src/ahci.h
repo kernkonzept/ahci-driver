@@ -59,7 +59,7 @@ class Connection
   Connection(); // needed for creating partition list
 
   /**
-   * Check if the device or own of its subdevices match the given name.
+   * Check if the device or one of its subdevices match the given name.
    *
    * \param name  HID to search for.
    */
