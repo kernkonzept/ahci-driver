@@ -104,14 +104,6 @@ long Ahci_virtio_driver::op_create(L4::Factory::Rights rights,
 
   L4::Ipc::Varg param = valist.next();
 
-  // Name of device. This must either be the serial number of the disk,
-  // when the entire disk is requested or for partitions their UUID.
-  if (!param.is_of<char const *>())
-    return -L4_EINVAL;
-
-  std::string name(param.value<char const *>(), param.length() - 1);
-
-  param = valist.next();
   if (!param.is_of<l4_mword_t>())
     return -L4_EINVAL;
 
@@ -119,6 +111,15 @@ long Ahci_virtio_driver::op_create(L4::Factory::Rights rights,
   unsigned numds = param.value<l4_mword_t>();
   if (numds == 0 || numds > 256) // sanity check with arbitrary limit
     return -L4_EINVAL;
+
+  param = valist.next();
+
+  // Name of device. This must either be the serial number of the disk,
+  // when the entire disk is requested or for partitions their UUID.
+  if (!param.is_of<char const *>())
+    return -L4_EINVAL;
+
+  std::string name(param.value<char const *>(), param.length() - 1);
 
   Virtio_ahci *va;
   for (auto &c : _connpts)
