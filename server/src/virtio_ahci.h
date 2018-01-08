@@ -20,7 +20,7 @@ namespace Ahci {
 struct Ds_info {};
 
 /**
- * \brief Virtio interface for the AHCI driver.
+ * Virtio interface for the AHCI driver.
  *
  * Drives one single device using the virtio interface specification.
  * This class assumes that it is the only driver for its device. If other
@@ -43,7 +43,7 @@ public:
    *
    * \param dev    Device to drive with this interface. The device must
    *               have been initialized already.
-   * \param numds Maximum number of dataspaces the client is allowed to share.
+   * \param numds  Maximum number of dataspaces the client is allowed to share.
    */
   Virtio_ahci(Ahci::Ahci_device *dev, unsigned numds)
   : L4virtio::Svr::Block_dev<Ds_info>(0x44, 0x100, dev->capacity() >> 9,
