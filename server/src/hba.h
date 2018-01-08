@@ -9,7 +9,7 @@
 
 #include <l4/re/env>
 #include <l4/re/error_helper>
-#include <l4/re/util/cap_alloc>
+#include <l4/re/util/shared_cap>
 #include <l4/re/util/object_registry>
 #include <l4/vbus/vbus>
 #include <l4/vbus/vbus_pci>
@@ -66,7 +66,8 @@ public:
   /**
    * Create a new AHCI HBA from a vbus PCI device.
    */
-  Hba(L4vbus::Pci_dev const &dev);
+  Hba(L4vbus::Pci_dev const &dev,
+      L4Re::Util::Shared_cap<L4Re::Dma_space> const &dma);
 
   Hba(Hba const &) = delete;
   Hba(Hba &&) = delete;

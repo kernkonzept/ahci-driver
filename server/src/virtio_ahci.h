@@ -17,12 +17,7 @@
 
 namespace Ahci {
 
-struct Ds_phys_info
-{
-  L4Re::Dma_space::Dma_addr _phys;
-
-  Ds_phys_info() : _phys(0) {}
-};
+struct Ds_info {};
 
 /**
  * \brief Virtio interface for the AHCI driver.
@@ -31,8 +26,17 @@ struct Ds_phys_info
  * This class assumes that it is the only driver for its device. If other
  * interfaces access the same device then the behaviour is unspecified.
  */
-class Virtio_ahci : public L4virtio::Svr::Block_dev<Ds_phys_info>
+class Virtio_ahci : public L4virtio::Svr::Block_dev<Ds_info>
 {
+  // a pending request contains the request proper and the prepared data block list
+  struct Pending_request
+  {
+    std::vector<Fis::Datablock> blocks;
+    cxx::unique_ptr<Request> request;
+    L4Re::Dma_space::Attributes attrs;
+    L4Re::Dma_space::Direction dir;
+  };
+
 public:
   /**
    * Create a new interface for an existing device.
@@ -42,8 +46,8 @@ public:
    * \param numds Maximum number of dataspaces the client is allowed to share.
    */
   Virtio_ahci(Ahci::Ahci_device *dev, unsigned numds)
-  : L4virtio::Svr::Block_dev<Ds_phys_info>(0x44, 0x100, dev->capacity() >> 9,
-                                           dev->is_read_only()),
+  : L4virtio::Svr::Block_dev<Ds_info>(0x44, 0x100, dev->capacity() >> 9,
+                                      dev->is_read_only()),
     _ahcidev(dev)
   {
     init_mem_info(numds);
@@ -58,21 +62,26 @@ public:
 
   bool process_request(cxx::unique_ptr<Request> &&req) override;
 
-  void task_finished(Request *req, int error, l4_size_t sz)
+  void task_finished(Pending_request *preq, int error, l4_size_t sz)
   {
-    // XXX unmap from Dma_Space
-    cxx::unique_ptr<Request> ureq(req);
-    finalize_request(cxx::move(ureq), sz, error);
+    // unmap from Dma_Space (ignore errors)
+    for (auto const &blk : preq->blocks)
+      _ahcidev->dma_space()->unmap(blk.addr, blk.size, preq->attrs, preq->dir);
+
+    // move on to the next request
+    finalize_request(cxx::move(preq->request), sz, error);
     check_pending();
+
+    // pending request can be dropped
+    cxx::unique_ptr<Pending_request> ureq(preq);
   }
 
   bool queue_stopped() override { return !_pending.empty(); }
 
 private:
-  int build_datablocks(Request *req, std::vector<Fis::Datablock> *blocks);
+  int build_datablocks(Pending_request *preq);
 
-  int inout_request(Request *req, std::vector<Fis::Datablock> const &blocks,
-                    unsigned flags);
+  int inout_request(Pending_request *preq, unsigned flags);
 
   void check_pending()
   {
@@ -82,22 +91,21 @@ private:
     while (!_pending.empty())
       {
         auto &pending = _pending.front();
-        auto req = pending.request.get();
         unsigned flags = 0;
-        if (req->header().type == L4VIRTIO_BLOCK_T_OUT)
+        if (pending->request->header().type == L4VIRTIO_BLOCK_T_OUT)
           flags = Fis::Chf_write;
-        int ret = inout_request(req, pending.blocks, flags);
+        int ret = inout_request(pending.get(), flags);
         if (ret == -L4_EBUSY)
           return; // still no unit available, keep element in queue
 
         if (ret < 0)
           // on any other error, send a response to the client immediately
-          finalize_request(cxx::move(pending.request), 0,
+          finalize_request(cxx::move(pending->request), 0,
                            L4VIRTIO_BLOCK_S_IOERR);
         else
           // request has been successfully sent to hardware
           // which now has ownership of Request pointer, so release here
-          pending.request.release();
+          pending.release();
 
         // remove element from queue
         _pending.pop();
@@ -107,15 +115,8 @@ private:
     kick();
   }
 
-  // a pending request contains the request proper and the prepared data block list
-  struct Pending_request
-  {
-    cxx::unique_ptr<Request> request;
-    std::vector<Fis::Datablock> blocks;
-  };
-
   Ahci::Ahci_device *_ahcidev;
-  std::queue<Pending_request> _pending;
+  std::queue<cxx::unique_ptr<Pending_request>> _pending;
 };
 
 }

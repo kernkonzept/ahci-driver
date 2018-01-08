@@ -26,7 +26,8 @@ namespace Ahci {
 
 bool Hba::check_address_width = true;
 
-Hba::Hba(L4vbus::Pci_dev const &dev)
+Hba::Hba(L4vbus::Pci_dev const &dev,
+         L4Re::Util::Shared_cap<L4Re::Dma_space> const &dma)
 : _dev(dev),
   _iomem(cfg_read(0x24) & 0xFFFFF000,
          L4::cap_reinterpret_cast<L4Re::Dataspace>(_dev.bus_cap())),
@@ -52,19 +53,11 @@ Hba::Hba(L4vbus::Pci_dev const &dev)
 
   int portno = 0;
   unsigned buswidth = feats.s64a() ? 64 : 32;
-  auto factory = L4Re::Env::env()->user_factory();
   for (auto &p : _ports)
     {
       if (ports & (1 << portno))
         {
-          // create a separate dma space for the device
-          auto d = L4Re::chkcap(L4Re::Util::make_unique_cap<L4Re::Dma_space>());
-          L4Re::chksys(factory->create(d.get(), L4Re::Dma_space::Protocol));
-          // XXX should ask IO for the proper dma space association
-          L4Re::chksys(d->associate(L4::Cap<L4::Task>(),
-                                    L4Re::Dma_space::Phys_space));
-          // and prepare the port
-          p.attach(_iomem.port_base_address(portno), buswidth, cxx::move(d));
+          p.attach(_iomem.port_base_address(portno), buswidth, dma);
           trace.printf("Registration of port %d done @0x%lx\n",
                        portno, _iomem.port_base_address(portno));
         }

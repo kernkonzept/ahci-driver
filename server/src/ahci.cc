@@ -8,8 +8,9 @@
 
 #include <l4/re/env>
 #include <l4/re/dataspace>
+#include <l4/re/dma_space>
 #include <l4/re/error_helper>
-#include <l4/re/util/cap_alloc>
+#include <l4/re/util/shared_cap>
 #include <cstring>
 
 #include <l4/vbus/vbus>
@@ -30,6 +31,19 @@ Ahci_virtio_driver::start_device_discovery(L4::Cap<L4vbus::Vbus> bus,
 {
   L4vbus::Pci_dev child;
 
+  trace.printf("Creating DMA domain for VBUS\n");
+
+  auto dma = L4Re::chkcap(L4Re::Util::make_shared_cap<L4Re::Dma_space>(),
+                          "Allocate capability for DMA space.");
+  L4Re::chksys(L4Re::Env::env()->user_factory()->create(dma.get()),
+               "Create DMA space.");
+
+  L4Re::chksys(
+      l4vbus_assign_dma_domain(bus.cap(), -1U,
+                               L4VBUS_DMAD_BIND | L4VBUS_DMAD_L4RE_DMA_SPACE,
+                               dma.get().cap()),
+      "Assignment of DMA domain.");
+
   info.printf("Starting device discovery.\n");
 
   l4vbus_device_t di;
@@ -42,7 +56,7 @@ Ahci_virtio_driver::start_device_discovery(L4::Cap<L4vbus::Vbus> bus,
         {
           try
             {
-              cxx::unique_ptr<Hba> hba = cxx::make_unique<Hba>(child);
+              cxx::unique_ptr<Hba> hba = cxx::make_unique<Hba>(child, dma);
               hba->register_interrupt_handler(icu, _registry);
               _hbas.push_back(cxx::move(hba));
 

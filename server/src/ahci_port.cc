@@ -101,7 +101,7 @@ Command_slot::setup_data(Fis::Datablock const *data, int len)
 
 int
 Ahci_port::attach(l4_addr_t base_addr, unsigned buswidth,
-                  L4Re::Util::Unique_cap<L4Re::Dma_space> &&dma_space)
+                  L4Re::Util::Shared_cap<L4Re::Dma_space> const &dma_space)
 {
   if (_state != S_undefined)
     return -L4_EEXIST;
@@ -137,7 +137,7 @@ Ahci_port::attach(l4_addr_t base_addr, unsigned buswidth,
       return -L4_ENODEV;
     }
 
-  _dma_space = cxx::move(dma_space);
+  _dma_space = dma_space;
 
   return L4_EOK;
 }
