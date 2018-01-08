@@ -95,14 +95,14 @@ Virtio_ahci::process_request(cxx::unique_ptr<Request> &&req)
         if (ret == -L4_EBUSY)
           {
             trace.printf("Port busy, queueing request.\n");
-            pending.request = std::move(req);
-            _pending.push(std::move(pending));
+            pending.request = cxx::move(req);
+            _pending.push(cxx::move(pending));
             return false;
           }
         else if (ret < 0)
           {
             trace.printf("Got IO error: %d\n", ret);
-            finalize_request(std::move(req), 0, L4VIRTIO_BLOCK_S_IOERR);
+            finalize_request(cxx::move(req), 0, L4VIRTIO_BLOCK_S_IOERR);
           }
         else
           // request has been successfully sent to hardware
@@ -111,7 +111,7 @@ Virtio_ahci::process_request(cxx::unique_ptr<Request> &&req)
         break;
       }
     default:
-      finalize_request(std::move(req), 0, L4VIRTIO_BLOCK_S_UNSUPP);
+      finalize_request(cxx::move(req), 0, L4VIRTIO_BLOCK_S_UNSUPP);
     }
 
   return true;

@@ -62,7 +62,7 @@ public:
   {
     // XXX unmap from Dma_Space
     cxx::unique_ptr<Request> ureq(req);
-    finalize_request(std::move(ureq), sz, error);
+    finalize_request(cxx::move(ureq), sz, error);
     check_pending();
   }
 
@@ -92,7 +92,7 @@ private:
 
         if (ret < 0)
           // on any other error, send a response to the client immediately
-          finalize_request(std::move(pending.request), 0,
+          finalize_request(cxx::move(pending.request), 0,
                            L4VIRTIO_BLOCK_S_IOERR);
         else
           // request has been successfully sent to hardware
