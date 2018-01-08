@@ -21,9 +21,9 @@ class Dbg : public L4Re::Util::Dbg
 public:
   enum Level
   {
-    Trace      = 1,
+    Warn       = 1,
     Info       = 2,
-    Warn       = 4,
+    Trace      = 4,
   };
 
   explicit

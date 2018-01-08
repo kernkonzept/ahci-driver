@@ -25,9 +25,10 @@
 static Dbg trace(Dbg::Trace, "main");
 
 static char const *usage_str =
-"Usage: %s [-v] [-A] [cap,disk_id,num_ds] ...\n\n"
+"Usage: %s [-v] [-q] [-A] [cap,disk_id,num_ds] ...\n\n"
 "Options:\n"
 " -v   Verbose mode.\n"
+" -q   Quiet mode.\n"
 " -A   Disable check for address width of device.\n"
 "      Only do this if all physical memory is guaranteed to be below 4GB\n";
 
@@ -44,16 +45,21 @@ public:
 static int
 parse_args(int argc, char *const *argv)
 {
+  int debug_level = 1;
+
   for (;;)
     {
-      int opt = getopt(argc, argv, "vA");
+      int opt = getopt(argc, argv, "vqA");
       if (opt == -1)
         break;
 
       switch (opt)
         {
         case 'v':
-          Dbg::set_level(0xff);
+          debug_level = (debug_level << 1) | 1;
+          break;
+        case 'q':
+          debug_level = 0;
           break;
         case 'A':
           Ahci::Hba::check_address_width = false;
@@ -63,6 +69,8 @@ parse_args(int argc, char *const *argv)
           return -1;
         }
     }
+
+  Dbg::set_level(debug_level);
 
   return optind;
 }
@@ -120,7 +128,7 @@ add_client(Ahci::Ahci_virtio_driver *ahcidrv, char const *entry)
 static int
 run(int argc, char *const *argv)
 {
-  Dbg::set_level(0xfe);
+  Dbg::set_level(Dbg::Info | Dbg::Warn);
 
   int arg_idx = parse_args(argc, argv);
   if (arg_idx < 0)
