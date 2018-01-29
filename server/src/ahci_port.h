@@ -115,10 +115,10 @@ public:
   /**
    * Set up a new command slot at the given memory regions.
    *
-   * \param cmd_header Pointer to where the command header structure resides,
-   *                   if 0 then the slot is considered inactive.
-   * \param cmd_table  Pointer to the command table to use
-   * \param cmd_table_pa Physical address of the command table.
+   * \param cmd_header    Pointer to where the command header structure
+   *                      resides, if 0 then the slot is considered inactive.
+   * \param cmd_table     Pointer to the command table to use.
+   * \param cmd_table_pa  Physical address of the command table.
    */
   Command_slot(Command_header *cmd_header, Command_table *cmd_table,
                l4_addr_t cmd_table_pa)
@@ -301,7 +301,7 @@ public:
    */
   void initialize(Errand::Callback const &callback);
 
-  /** Check that the device is ready for receivind commands. */
+  /** Check that the device is ready for receiving commands. */
   bool is_ready() const { return _state == S_ready; }
 
   /**
@@ -347,7 +347,6 @@ public:
   /**
    * Place a new command.
    *
-   * \param sif      Server interface to use for errands.
    * \param task     Task to execute.
    * \param cb       Callback to execute when the task is finished.
    * \param port     For port multipliers: destination port.
