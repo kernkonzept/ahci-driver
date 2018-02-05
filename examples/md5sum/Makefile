@@ -9,6 +9,4 @@ SRC_CC_ahci-md5-async = main_async.cc md5.cc
 
 REQUIRES_LIBS  := libstdc++ cxx_libc_io cxx_io l4virtio
 
-SRC_CC_IS_CXX11 = y
-
 include $(L4DIR)/mk/prog.mk
