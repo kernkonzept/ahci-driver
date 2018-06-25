@@ -67,7 +67,7 @@ static_assert(sizeof(struct Command_header) == 32,
 
 
 /**
- * Command table for a single request tot the AHCI HBA.
+ * Command table for a single request to the AHCI HBA.
  */
 struct Command_table
 {
@@ -80,7 +80,7 @@ struct Command_table
   /** Command FIS structure */
   l4_uint8_t cfis[64];
   /** ATAPI command structure */
-  l4_uint8_t acmd[64]; // only up to 16 byte actually used
+  l4_uint8_t acmd[64]; // only up to 16 bytes actually used
   struct
   {
     /** data base address - lower 32 bit */
@@ -148,7 +148,8 @@ public:
   /**
    * Try to reserve the command slot.
    *
-   * \return True if the slot could be reserved, false otherwise.
+   * \retval true   The slot could be reserved.
+   * \retval false  The slot could not be reserved.
    */
   bool reserve()
   {
@@ -426,7 +427,7 @@ private:
              & (Regs::Port::Cmd_cr | Regs::Port::Cmd_st));
   }
 
-  /** Return true if the command list is disabled. */
+  /** Return true if receiving a FIS is disabled. */
   bool is_fis_receive_disabled() const
   {
     return !(_regs[Regs::Port::Cmd]
