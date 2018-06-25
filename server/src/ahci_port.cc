@@ -15,9 +15,10 @@
 
 #include "ahci_port.h"
 #include "debug.h"
-#include "errand.h"
 
 static Dbg trace(Dbg::Trace, "ahci-port");
+
+namespace Errand = Block_device::Errand;
 
 namespace Ahci {
 
@@ -68,30 +69,29 @@ Command_slot::setup_command(Fis::Taskfile const &task, Fis::Callback const &cb,
 }
 
 int
-Command_slot::setup_data(Fis::Datablock const *data, int len)
+Command_slot::setup_data(Fis::Datablock const &data, l4_uint32_t sector_size)
 {
 #if (__BYTE_ORDER == __BIG_ENDIAN)
 #error "Big endlian not implemented."
 #endif
 
-  unsigned numblocks = len;
-  if (numblocks > Command_table::Max_entries)
-    numblocks = Command_table::Max_entries;
-
-  for (unsigned i = 0; i < numblocks; ++i)
+  unsigned i = 0;
+  for (Fis::Datablock const *block = &data;
+       block && i < Command_table::Max_entries;
+       ++i, block = block->next.get())
     {
-      _cmd_table->prd[i].dba = data[i].addr;
+      _cmd_table->prd[i].dba = block->dma_addr;
       if (sizeof(l4_addr_t) == 8)
-        _cmd_table->prd[i].dbau = (l4_uint64_t) data[i].addr >> 32;
+        _cmd_table->prd[i].dbau = (l4_uint64_t) block->dma_addr >> 32;
       else
         _cmd_table->prd[i].dbau = 0;
-      _cmd_table->prd[i].dbc = data[i].size - 1;
+      _cmd_table->prd[i].dbc = (block->num_sectors * sector_size) - 1;
       // TODO: cache: make sure client data is flushed
     }
 
-  _cmd_header->prdtl() = numblocks;
+  _cmd_header->prdtl() = i;
 
-  return len;
+  return i;
 }
 
 //--------------------------------------------
@@ -155,22 +155,36 @@ Ahci_port::initialize_memory(unsigned maxslots)
   // disable all interrupts for now
   _regs[Regs::Port::Ie] = 0;
 
-  // get physical memory
+  // set up memory for the command data
+  _cmddata_cap = L4Re::chkcap(L4Re::Util::make_unique_cap<L4Re::Dataspace>(),
+                              "Allocate capability for command data.");
+  auto *e = L4Re::Env::env();
   unsigned memsz = sizeof(Command_data) + maxslots * sizeof(Command_table);
-  _cmd_data = Phys_region(memsz, _dma_space.get(),
-                          L4Re::Dma_space::Direction::Bidirectional);
-  Command_data *cd = _cmd_data.get<Command_data>();
+  L4Re::chksys(e->mem_alloc()->alloc(memsz, _cmddata_cap.get(),
+                                     L4Re::Mem_alloc::Continuous
+                                     | L4Re::Mem_alloc::Pinned),
+               "Allocate memory for command data.");
 
-  info.printf("Initializing port @%p.\n", _cmd_data.get<void>());
+  L4Re::chksys(e->rm()->attach(&_cmd_data, memsz, L4Re::Rm::Search_addr,
+                               L4::Ipc::make_cap_rw(_cmddata_cap.get()), 0,
+                               L4_PAGESHIFT),
+               "Attach command data memory.");
+
+  L4Re::chksys(dma_map(_cmddata_cap.get(), 0, memsz,
+                       L4Re::Dma_space::Direction::Bidirectional,
+                       &_cmddata_paddr),
+               "Attach command data memory to DMA space.");
+
+  Dbg::trace().printf("Initializing port @%p.\n", _cmd_data.get());
 
   // setup command list
-  l4_addr_t addr = _cmd_data.phys() + offsetof(Command_data, headers);
+  l4_addr_t addr = _cmddata_paddr + offsetof(Command_data, headers);
   _regs[Regs::Port::Clb] = addr;
   _regs[Regs::Port::Clbu] = (sizeof(l4_addr_t) == 8)
                             ? ((l4_uint64_t) addr >> 32) : 0;
 
   // setup FIS receive region
-  addr = _cmd_data.phys() + offsetof(Command_data, fis);
+  addr = _cmddata_paddr + offsetof(Command_data, fis);
   _regs[Regs::Port::Fb] = addr;
   _regs[Regs::Port::Fbu] = (sizeof(l4_addr_t) == 8)
                            ? ((l4_uint64_t) addr >> 32) : 0;
@@ -188,7 +202,8 @@ Ahci_port::initialize_memory(unsigned maxslots)
   l4_uint32_t state = _regs[Regs::Port::Ci] | _regs[Regs::Port::Sact];
 
   // physical address, used for pointer arithmetics
-  l4_addr_t phys_ct = _cmd_data.phys() + offsetof(Command_data, tables);
+  l4_addr_t phys_ct = _cmddata_paddr + offsetof(Command_data, tables);
+  Command_data *cd = _cmd_data.get();
   for (unsigned i = 0; i < maxslots; ++i)
     {
       _slots.emplace_back(&cd->headers[i], &cd->tables[i],
@@ -200,7 +215,7 @@ Ahci_port::initialize_memory(unsigned maxslots)
 
   _state = S_disabled;
 
-  trace.printf("== Initialisation finished.\n");
+  Dbg::trace().printf("Initialisation finished.\n");
   dump_registers(trace);
 }
 
@@ -227,7 +242,7 @@ Ahci_port::enable(Errand::Callback const &callback)
                      {
                        if (_state != S_enabling)
                          {
-                           warn.printf("Unexpected state in Ahci_port::enable");
+                           Dbg::warn().printf("Unexpected state in Ahci_port::enable\n");
                            callback();
                          }
                        else if (ret)
@@ -255,7 +270,7 @@ Ahci_port::dma_enable(Errand::Callback const &callback)
                  {
                    if (_state != S_enabling)
                      {
-                       warn.printf("Unexpected state in Ahci_port::enable");
+                       Dbg::warn().printf("Unexpected state in Ahci_port::enable\n");
                        callback();
                      }
                    else if (ret)
@@ -280,7 +295,7 @@ Ahci_port::disable(Errand::Callback const &callback)
   if (_state == S_disabled || _state == S_error)
     {
       _state = S_fatal;
-      error.printf("Port disable called in unexpected state.\n");
+      Err().printf("Port disable called in unexpected state.\n");
     }
 
   if (is_command_list_disabled())
@@ -309,13 +324,13 @@ Ahci_port::disable(Errand::Callback const &callback)
                [=](bool ret)
                  {
                    if (_state != S_disabling)
-                     warn.printf("Unexpected state in Ahci_port::disable");
-                     else if (ret)
+                     Dbg::warn().printf("Unexpected state in Ahci_port::disable");
+                   else if (ret)
                      _state = S_disabled;
                    else
                      {
                        _state = S_fatal;
-                       error.printf("Could not disable port.");
+                       Err().printf("Could not disable port.");
                      }
                    callback();
                  });
@@ -370,7 +385,7 @@ Ahci_port::initialize(Errand::Callback const &callback)
     _state = S_error_init;
   else
     {
-      fatal.printf("'Initialize' called out of order.\n");
+      Err().printf("'Initialize' called out of order.\n");
       _state = S_fatal;
       return;
     }
@@ -391,7 +406,7 @@ Ahci_port::initialize(Errand::Callback const &callback)
                    if (!(_state == S_present_init || _state == S_error_init))
                      {
                        // TODO Should this unexpected state change be fatal?
-                       warn.printf("Unexpected state in Ahci_port::initialize\n");
+                       Dbg::warn().printf("Unexpected state in Ahci_port::initialize\n");
                        callback();
                      }
                    else if (ret)
@@ -400,7 +415,7 @@ Ahci_port::initialize(Errand::Callback const &callback)
                      }
                    else
                      {
-                       error.printf("Init: ST disable failed.\n");
+                       Err().printf("Init: ST disable failed.\n");
                        dump_registers(trace);
                        _state = S_fatal;
                        callback();
@@ -427,14 +442,14 @@ Ahci_port::disable_fis_receive(Errand::Callback const &callback)
                    if (!(_state == S_present_init || _state == S_error_init))
                      {
                        // TODO Should this unexpected state change be fatal?
-                       warn.printf("Unexpected state in Ahci_port::initialize\n");
+                       Dbg::warn().printf("Unexpected state in Ahci_port::initialize\n");
                      }
                    else if (ret)
                      _state = (_state == S_present_init) ?
                               S_attached : S_disabled;
                    else
                      {
-                       error.printf(" Reset: fis receive reset failed.\n");
+                       Err().printf(" Reset: fis receive reset failed.\n");
                        _state = S_fatal;
                      }
                    callback();
@@ -446,7 +461,7 @@ Ahci_port::disable_fis_receive(Errand::Callback const &callback)
 void
 Ahci_port::reset(Errand::Callback const &callback)
 {
-  info.printf("Doing full port reset.\n");
+  Dbg::info().printf("Doing full port reset.\n");
 
   _regs[Regs::Port::Sctl] = 1;
 
@@ -493,22 +508,23 @@ Ahci_port::send_command(Fis::Taskfile const &task, Fis::Callback const &cb,
   if (L4_UNLIKELY(!device_ready()))
     return -L4_ENODEV;
 
-  /// XXX get rid of fixed task lists
-  if (task.num_blocks > Command_table::Max_entries)
-    return -L4_EINVAL;
-
   unsigned slot = 0;
   for (auto &s : _slots)
     {
       if (s.reserve())
         {
           s.setup_command(task, cb, port);
-          s.setup_data(task.data, task.num_blocks);
+          if (s.setup_data(*task.data, task.sector_size) < 0)
+            {
+              Err().printf("Bad data blocks\n");
+              s.release();
+              return -L4_EINVAL;
+            }
           trace.printf("Reserved slot %d.\n", slot);
           if (is_ready())
             {
               trace.printf("Sending off slot %d.\n", slot);
-              _cmd_data.get<Command_data>()->dma_flush(slot);
+              _cmd_data.get()->dma_flush(slot);
               _regs[Regs::Port::Ci] = 1 << slot;
             }
           else
@@ -532,7 +548,7 @@ Ahci_port::process_interrupts()
 {
   if (_devtype == Ahcidev_none)
     {
-      warn.printf("Interrupt for inactive port received.\n");
+      Dbg::warn().printf("Interrupt for inactive port received.\n");
       return -L4_ENODEV;
     }
 
@@ -540,7 +556,7 @@ Ahci_port::process_interrupts()
 
   if (istate & (Regs::Port::Is_mask_status))
     {
-      warn.printf("Device state changed.\n");
+      Dbg::warn().printf("Device state changed.\n");
       // TODO Restart the device detection cycle here.
       abort([=]{ reset([]{}); });
       // clear interrupts
@@ -609,5 +625,34 @@ Ahci_port::handle_error()
       });
 
 }
+
+int
+Ahci_port::dma_map(L4::Cap<L4Re::Dataspace> ds, l4_addr_t offset,
+                   l4_size_t size, L4Re::Dma_space::Direction dir,
+                   L4Re::Dma_space::Dma_addr *phys)
+{
+  l4_size_t out_size = size;
+
+  auto ret = _dma_space->map(L4::Ipc::make_cap_rw(ds), offset, &out_size,
+                             L4Re::Dma_space::Attributes::None, dir, phys);
+
+  if (ret < 0 || out_size < size)
+    {
+      *phys = 0;
+      Dbg::info().printf("Cannot resolve physical address (ret = %ld, %zu < %zu).\n",
+                         ret, out_size, size);
+      return -L4_ENOMEM;
+    }
+
+  return L4_EOK;
+}
+
+int
+Ahci_port::dma_unmap(L4Re::Dma_space::Dma_addr phys, l4_size_t size,
+                     L4Re::Dma_space::Direction dir)
+{
+  return _dma_space->unmap(phys, size, L4Re::Dma_space::Attributes::None, dir);
+}
+
 
 }

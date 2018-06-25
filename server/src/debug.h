@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Kernkonzept GmbH.
+ * Copyright (C) 2018 Kernkonzept GmbH.
  * Author(s): Sarah Hoffmann <sarah.hoffmann@kernkonzept.com>
  *
  * This file is distributed under the terms of the GNU General Public
@@ -9,11 +9,9 @@
 
 #include <l4/re/util/debug>
 
-class Err : public L4Re::Util::Err
+struct Err : L4Re::Util::Err
 {
-public:
-  explicit
-  Err(Level l = Normal) : L4Re::Util::Err(l, "AHCI") {}
+  explicit Err(Level l = Normal) : L4Re::Util::Err(l, "AHCI") {}
 };
 
 class Dbg : public L4Re::Util::Dbg
@@ -21,18 +19,35 @@ class Dbg : public L4Re::Util::Dbg
 public:
   enum Level
   {
-    Warn       = 1,
-    Info       = 2,
-    Trace      = 4,
+    Warn  = 1,
+    Info  = 2,
+    Trace = 4,
+    Steptrace = 8
   };
 
-  explicit
-  Dbg(unsigned long mask, char const *subs = 0)
-  : L4Re::Util::Dbg(mask, subs, 0)
-  {}
+  Dbg(unsigned long l = Info, char const *subsys = "")
+  : L4Re::Util::Dbg(l, "AHCI", subsys) {}
+
+  static Dbg warn(char const *subsys = "")
+  { return Dbg(Dbg::Warn, subsys); }
+
+  static Dbg info(char const *subsys = "")
+  { return Dbg(Dbg::Info, subsys); }
+
+  static Dbg trace(char const *subsys = "")
+  { return Dbg(Dbg::Trace, subsys); }
+
+  static Dbg steptrace(char const *subsys = "")
+  { return Dbg(Dbg::Steptrace, subsys); }
 };
 
-static Dbg info(Dbg::Info);
-static Dbg warn(Dbg::Warn);
-static Err error(Err::Normal);
-static Err fatal(Err::Fatal);
+using Err_blockdev = Err;
+
+struct Dbg_blockdev : L4Re::Util::Dbg
+{
+  Dbg_blockdev(unsigned long l, char const *subsys)
+  : L4Re::Util::Dbg(l, "AHCI", subsys) {}
+};
+
+#define LIBBLOCKDEV_DEBUG_ERR Err_blockdev
+#define LIBBLOCKDEV_DEBUG_DBG Dbg_blockdev

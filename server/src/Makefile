@@ -6,9 +6,8 @@ L4DIR  ?= $(PKGDIR)/../..
 SYSTEMS    := x86-l4f amd64-l4f arm-l4f
 
 TARGET = ahci-drv
-SRC_CC = main.cc ahci.cc hba.cc ahci_port.cc devices.cc partition.cc \
-         virtio_ahci.cc errand.cc
+SRC_CC = main.cc ahci_device.cc ahci_port.cc hba.cc
 
-REQUIRES_LIBS  := libstdc++ cxx_libc_io cxx_io libio-vbus
+REQUIRES_LIBS  := libio-vbus libblock-device
 
 include $(L4DIR)/mk/prog.mk

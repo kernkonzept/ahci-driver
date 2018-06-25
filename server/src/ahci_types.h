@@ -9,7 +9,7 @@
 
 #include <l4/cxx/bitfield>
 
-#include <functional>
+#include <l4/libblock-device/types.h>
 
 namespace Ahci {
 
@@ -164,16 +164,8 @@ enum Port_interrupts
 
 namespace Fis {
 
-typedef std::function<void(int, l4_size_t)> Callback;
-
-struct Datablock
-{
-  l4_addr_t addr;
-  l4_uint32_t size; // yields 4MB maximum size as specified
-
-  Datablock() {}
-  Datablock(l4_addr_t a, l4_uint32_t s) : addr(a), size(s) {}
-};
+using Callback = Block_device::Inout_callback;
+using Datablock = Block_device::Inout_block;
 
 enum Command_header_flags
 {
@@ -199,8 +191,8 @@ struct Taskfile
   unsigned flags;
 
   // data
-  Datablock const *data;
-  int num_blocks;
+  Block_device::Inout_block const *data;
+  l4_size_t sector_size;
 };
 
 } // namespace Fis

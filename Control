@@ -1,3 +1,2 @@
-provides: ahci-drv
-requires: libc libstdc++ libio l4virtio stdlibs-sh
+requires: libblock-device libio-vbus
 maintainer: sarah.hoffmann@kernkonzept.com

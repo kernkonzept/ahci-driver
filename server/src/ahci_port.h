@@ -11,16 +11,18 @@
 #include <l4/cxx/utils>
 #include <l4/util/atomic.h>
 #include <l4/re/dma_space>
+#include <l4/re/rm>
 #include <l4/re/util/shared_cap>
+#include <l4/re/util/unique_cap>
 #include <l4/sys/cache.h>
 #include <cassert>
 #include <vector>
 
 #include "hw_mmio_register_block.h"
 #include "ahci_types.h"
-#include "mem_helper.h"
-#include "errand.h"
 #include "debug.h"
+
+#include <l4/libblock-device/errand.h>
 
 namespace Ahci {
 
@@ -117,7 +119,7 @@ public:
    *
    * \param cmd_header    Pointer to where the command header structure
    *                      resides, if 0 then the slot is considered inactive.
-   * \param cmd_table     Pointer to the command table to use.
+   * \param cmd_table     Pointer to the command table to use
    * \param cmd_table_pa  Physical address of the command table.
    */
   Command_slot(Command_header *cmd_header, Command_table *cmd_table,
@@ -172,10 +174,10 @@ public:
   /**
    * Fill data table from a FIS datablock structure.
    *
-   * \param data  Chained listed of data block descriptors.
-   * \param len   Number of descriptors in chain.
+   * \param data         Chained listed of data block descriptors.
+   * \param sector_size  Size of a logical sector in bytes.
    */
-  int setup_data(Fis::Datablock const data[], int len);
+  int setup_data(Fis::Datablock const &data, l4_uint32_t sector_size);
 
   /**
    * Called when the task in this slot has been finished.
@@ -184,7 +186,7 @@ public:
   {
     // Deferred execution because we might be in the interrupt handler.
     if (_callback)
-      Errand::schedule(std::bind(_callback, L4_EOK, _cmd_header->prdbc), 0);
+      Block_device::Errand::schedule(std::bind(_callback, L4_EOK, _cmd_header->prdbc), 0);
 
     release();
   }
@@ -209,7 +211,6 @@ public:
   }
 
 private:
-
   Command_table *_cmd_table;
   l4_addr_t _cmd_table_pa;
   Command_header *_cmd_header;
@@ -299,7 +300,7 @@ public:
    * This is the softest variant of a reset, that just tries to disable the
    * start register of the device.
    */
-  void initialize(Errand::Callback const &callback);
+  void initialize(Block_device::Errand::Callback const &callback);
 
   /** Check that the device is ready for receiving commands. */
   bool is_ready() const { return _state == S_ready; }
@@ -317,7 +318,7 @@ public:
    * case, then the HBA needs to be reset in order to return the port
    * into a working state.
    */
-  void reset(Errand::Callback const &callback);
+  void reset(Block_device::Errand::Callback const &callback);
 
   /**
    * Return true if device is present and communication established.
@@ -351,8 +352,8 @@ public:
    * \param cb       Callback to execute when the task is finished.
    * \param port     For port multipliers: destination port.
    *
-   * \return On success, the slot number used for the task.
-   *         A (negative) error code otherwise.
+   * \retval >=0  The slot number used for the task.
+   * \retval <0   Error code.
    *
    * Finds a free slot and starts placing the command. If the
    * synchronous bit has been set, the function waits for the transfer
@@ -379,9 +380,19 @@ public:
    *         called in this case. -L4_EBUSY if the enable process has been
    *         started successfully, another negative error code otherwise.
    */
-  void enable(Errand::Callback const &callback);
+  void enable(Block_device::Errand::Callback const &callback);
 
   L4::Cap<L4Re::Dma_space> dma_space() const { return _dma_space.get(); }
+
+  int dma_map(L4::Cap<L4Re::Dataspace> ds, l4_addr_t offset, l4_size_t size,
+              L4Re::Dma_space::Direction dir,
+              L4Re::Dma_space::Dma_addr *phys);
+
+  int dma_unmap(L4Re::Dma_space::Dma_addr phys, l4_size_t size,
+                L4Re::Dma_space::Direction dir);
+
+  unsigned max_slots() const
+  { return _slots.size(); }
 
 private:
   /** Check if the port is ready to receive IO tasks.  */
@@ -448,11 +459,11 @@ private:
 
   void handle_error();
 
-  void disable_fis_receive(Errand::Callback const &callback);
+  void disable_fis_receive(Block_device::Errand::Callback const &callback);
 
-  void wait_tfd(Errand::Callback const &callback);
+  void wait_tfd(Block_device::Errand::Callback const &callback);
 
-  void dma_enable(Errand::Callback const &callback);
+  void dma_enable(Block_device::Errand::Callback const &callback);
 
   /**
    * Enable all interrupts on this port.
@@ -471,14 +482,14 @@ private:
    * This function only stops the port, it does not notify
    * potentially pending clients.
    */
-  void disable(Errand::Callback const &callback);
+  void disable(Block_device::Errand::Callback const &callback);
 
   /**
    * Abort all pending operations and disable port.
    *
    * \param callback Errand to schedule after the abort has finished.
    */
-  void abort(Errand::Callback const &callback);
+  void abort(Block_device::Errand::Callback const &callback);
 
   /**
    * Dump port register set to debug (at trace level).
@@ -489,7 +500,9 @@ private:
   State _state;
   std::vector<Command_slot> _slots;
   Port_regs _regs;
-  Phys_region _cmd_data;
+  L4Re::Util::Unique_cap<L4Re::Dataspace> _cmddata_cap;
+  L4Re::Rm::Unique_region<Command_data *> _cmd_data;
+  L4Re::Dma_space::Dma_addr _cmddata_paddr;
   L4Re::Util::Shared_cap<L4Re::Dma_space> _dma_space;
   unsigned char _buswidth;
 };

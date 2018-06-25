@@ -91,7 +91,7 @@ void Hba::scan_ports(std::function<void(Ahci_port *)> callback)
                   }
                 catch (L4::Runtime_error const &e)
                   {
-                    error.printf("Could not enable port: %s\n", e.str());
+                    Err().printf("Could not enable port: %s\n", e.str());
                   }
               });
         }
@@ -130,8 +130,8 @@ Hba::register_interrupt_handler(L4::Cap<L4::Icu> icu,
   int irq = L4Re::chksys(_dev.irq_enable(&_irq_trigger_type, &polarity),
                          "Could not enable interrupt.");
 
-  info.printf("Device: interrupt : %d trigger: %d, polarity: %d\n",
-              irq, (int)_irq_trigger_type, (int)polarity);
+  Dbg::info().printf("Device: interrupt : %d trigger: %d, polarity: %d\n",
+                     irq, (int)_irq_trigger_type, (int)polarity);
   trace.printf("Device: interrupt status: 0x%x\n", _regs[Regs::Hba::Is].read());
 
   _regs[Regs::Hba::Ghc].clear(Regs::Hba::Ghc_ie);
