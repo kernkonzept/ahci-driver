@@ -442,7 +442,8 @@ Ahci_port::disable_fis_receive(Errand::Callback const &callback)
                    if (!(_state == S_present_init || _state == S_error_init))
                      {
                        // TODO Should this unexpected state change be fatal?
-                       Dbg::warn().printf("Unexpected state in Ahci_port::initialize\n");
+                       Dbg::warn().printf("Unexpected state in "
+                                          "Ahci_port::disable_fis_receive\n");
                      }
                    else if (ret)
                      _state = (_state == S_present_init) ?
