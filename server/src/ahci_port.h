@@ -36,7 +36,7 @@ struct Command_header
   l4_uint32_t flags;
   /** Length of physical region descriptor table */
   CXX_BITFIELD_MEMBER(16, 31, prdtl, flags);
-  /** Port multiplyer port */
+  /** Port multiplier port */
   CXX_BITFIELD_MEMBER(12, 15, pmp, flags);
   /** Clear busy upon ok */
   CXX_BITFIELD_MEMBER(10, 10, c, flags);
