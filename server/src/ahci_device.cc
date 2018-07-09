@@ -135,7 +135,7 @@ Ahci::Ahci_device::inout_data(l4_uint64_t sector,
   for (auto const *block = &blocks; block; block = block->next.get())
     numsec += block->num_sectors;
 
-  if (_devinfo.features.longaddr)
+  if (_devinfo.features.lba48)
     {
       if (numsec <= 0 || numsec > 65536 || sector > ((l4_uint64_t)1 << 48))
         {
@@ -170,23 +170,23 @@ Ahci::Ahci_device::inout_data(l4_uint64_t sector,
 
   if (dir == L4Re::Dma_space::Direction::To_device)
     {
-      task.flags = Fis::Chf_write;
+      task.flags = Fis::Chf_write | Fis::Chf_clr_busy;
       if (_devinfo.features.dma)
-        task.command = _devinfo.features.longaddr ? Ata::Cmd::Write_dma
-                                                  : Ata::Cmd::Write_dma_ext;
+        task.command = _devinfo.features.lba48 ? Ata::Cmd::Write_dma_ext
+                                               : Ata::Cmd::Write_dma;
       else
-        task.command = _devinfo.features.longaddr ? Ata::Cmd::Write_sector
-                                                  : Ata::Cmd::Write_sector_ext;
+        task.command = _devinfo.features.lba48 ? Ata::Cmd::Write_sector_ext
+                                               : Ata::Cmd::Write_sector;
     }
   else if (dir == L4Re::Dma_space::Direction::From_device)
     {
-      task.flags = 0;
+      task.flags = Fis::Chf_clr_busy;
       if (_devinfo.features.dma)
-        task.command = _devinfo.features.longaddr ? Ata::Cmd::Read_dma
-                                                  : Ata::Cmd::Read_dma_ext;
+        task.command = _devinfo.features.lba48 ? Ata::Cmd::Read_dma_ext
+                                               : Ata::Cmd::Read_dma;
       else
-        task.command = _devinfo.features.longaddr ? Ata::Cmd::Read_sector
-                                                  : Ata::Cmd::Read_sector_ext;
+        task.command = _devinfo.features.lba48 ? Ata::Cmd::Read_sector_ext
+                                               : Ata::Cmd::Read_sector;
     }
 
   task.lba = sector;
@@ -228,7 +228,7 @@ Ahci::Ahci_device::Device_info::set_device_info(l4_uint16_t const *info)
 
   features.lba = info[IID_capabilities] >> 9;
   features.dma = info[IID_capabilities] >> 8;
-  features.longaddr = info[IID_enabled_features + 1] >> 10;
+  features.lba48 = info[IID_enabled_features + 1] >> 10;
   // XXX where is the read-only bit hiding again?
   features.ro = 0;
 
@@ -237,7 +237,7 @@ Ahci::Ahci_device::Device_info::set_device_info(l4_uint16_t const *info)
                      | l4_size_t(info[IID_logsector_size]));
   if (sector_size < 512)
     sector_size = 512;
-  if (features.longaddr)
+  if (features.lba48)
     num_sectors = (l4_uint64_t(info[IID_lba_addressable_sectors + 2]) << 32)
                   | (l4_uint64_t(info[IID_lba_addressable_sectors + 1]) << 16)
                   | l4_uint64_t(info[IID_lba_addressable_sectors]);

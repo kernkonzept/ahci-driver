@@ -68,7 +68,7 @@ class Ahci_device : public Block_device::Device
     {
       unsigned lba : 1;      ///< Logical block addressing supported
       unsigned dma : 1;      ///< DMA supported
-      unsigned longaddr : 1; ///< extended 48-bit addressing enabled
+      unsigned lba48 : 1;    ///< extended 48-bit addressing enabled
       unsigned s64a : 1;     ///< Bus supports 64bit addressing
       unsigned ro : 1;       ///< device is read=only (XXX not implemented)
     } features;

@@ -172,6 +172,8 @@ enum Command_header_flags
   Chf_prefetchable  = 0x1,
   Chf_write         = 0x2,
   Chf_atapi         = 0x4,
+  Chf_reset         = (1 << 3),
+  Chf_clr_busy      = (1 << 4),
 };
 
 /**
