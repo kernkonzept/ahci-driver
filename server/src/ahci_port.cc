@@ -52,10 +52,10 @@ Command_slot::setup_command(Fis::Taskfile const &task, Fis::Callback const &cb,
   // now add the slot information
   _cmd_header->flags = 0;
   _cmd_header->prdtl() = 0;
-  _cmd_header->p() = (task.flags & Fis::Chf_prefetchable);
-  _cmd_header->w() = (task.flags & Fis::Chf_write);
-  _cmd_header->a() = (task.flags & Fis::Chf_atapi);
-  _cmd_header->c() = true;
+  _cmd_header->p() = (task.flags & Fis::Chf_prefetchable) ? 1 : 0;
+  _cmd_header->w() = (task.flags & Fis::Chf_write) ? 1 : 0;
+  _cmd_header->a() = (task.flags & Fis::Chf_atapi) ? 1 : 0;
+  _cmd_header->c() = (task.flags & Fis::Chf_clr_busy) ? 1 : 0;
   _cmd_header->cfl() = 5;
   _cmd_header->prdbc = 0;
   _cmd_header->ctba0 = _cmd_table_pa;
