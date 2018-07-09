@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>
+#include <getopt.h>
 #include <vector>
 
 #include <l4/re/env>
@@ -35,13 +36,146 @@ static char const *usage_str =
 " -A   Disable check for address width of device.\n"
 "      Only do this if all physical memory is guaranteed to be below 4GB\n";
 
-struct Blk_mgr
-: Block_device::Device_mgr<Block_device::Virtio_client>,
-  Block_device::Device_factory<Blk_mgr>
+class Blk_mgr
+: public Block_device::Device_mgr<Block_device::Virtio_client>,
+  public L4::Epiface_t<Blk_mgr, L4::Factory>
 {
+public:
   Blk_mgr(L4Re::Util::Object_registry *registry)
   : Block_device::Device_mgr<Block_device::Virtio_client>(registry)
   {}
+
+  long op_create(L4::Factory::Rights, L4::Ipc::Cap<void> &res, l4_umword_t,
+                 L4::Ipc::Varg_list_ref valist)
+  {
+    Dbg::trace().printf("Client requests connection.\n");
+
+    // default values
+    std::string device;
+    int num_ds = 2;
+
+    for (L4::Ipc::Varg p = valist.next(); !p.is_nil(); p = valist.next())
+      {
+        if (!p.is_of<char const *>())
+          {
+            Dbg::warn().printf("String parameter expected.\n");
+            return -L4_EINVAL;
+          }
+
+        if (parse_string_param(p, "device=", &device))
+          continue;
+        if (parse_int_param(p, "ds-max=", &num_ds))
+          {
+            if (num_ds <= 0 || num_ds > 256) // sanity check with arbitrary limit
+              {
+                Dbg::warn().printf("Invalid range for parameter 'ds-max'. "
+                                   "Number must be between 1 and 256.\n");
+                return -L4_EINVAL;
+              }
+            continue;
+          }
+      }
+
+    if (device.empty())
+      {
+        Dbg::warn().printf("Parameter 'device=' not found. "
+                           "Device UUID is required.\n");
+        return -L4_EINVAL;
+      }
+
+    L4::Cap<void> cap;
+    int ret = create_dynamic_client(device, -1, num_ds, &cap);
+    if (ret >= 0)
+      res = L4::Ipc::make_cap(cap, L4_CAP_FPAGE_RWSD);
+
+    return (ret == -L4_ENODEV && _scan_in_progress) ? -L4_EAGAIN : ret;
+  }
+
+  void scan_finished()
+  { _scan_in_progress = false; }
+
+private:
+  static bool parse_string_param(L4::Ipc::Varg const &param, char const *prefix,
+                                 std::string *out)
+  {
+    l4_size_t headlen = strlen(prefix);
+
+    if (param.length() < headlen)
+      return false;
+
+    char const *pstr = param.value<char const *>();
+
+    if (strncmp(pstr, prefix, headlen) != 0)
+      return false;
+
+    *out = std::string(pstr + headlen, strnlen(pstr, param.length()) - headlen);
+
+    return true;
+  }
+
+  static bool parse_int_param(L4::Ipc::Varg const &param, char const *prefix,
+                              int *out)
+  {
+    l4_size_t headlen = strlen(prefix);
+
+    if (param.length() < headlen)
+      return false;
+
+    char const *pstr = param.value<char const *>();
+
+    if (strncmp(pstr, prefix, headlen) != 0)
+      return false;
+
+    std::string tail(pstr + headlen, param.length() - headlen);
+
+    char *endp;
+    long num = strtol(tail.c_str(), &endp, 10);
+
+    if (num < INT_MIN || num > INT_MAX || *endp != '\0')
+      {
+        Dbg::warn().printf("Bad paramter '%s'. Number required.\n", prefix);
+        L4Re::chksys(-L4_EINVAL);
+      }
+
+    *out = num;
+
+    return true;
+  }
+
+  bool _scan_in_progress = true;
+};
+
+struct Client_opts
+{
+  bool add_client(Blk_mgr *blk_mgr)
+  {
+    if (capname)
+      {
+        if (!device)
+          {
+            Err().printf("No device for client '%s' given. "
+                         "Please specify a device.\n", capname);
+            return false;
+          }
+
+        auto cap = L4Re::Env::env()->get_cap<L4::Rcv_endpoint>(capname);
+        if (!cap.is_valid())
+          {
+            Err().printf("Client capability '%s' no found.\n", capname);
+            return false;
+          }
+
+        // TODO: Pass on 'readonly' flag
+        blk_mgr->add_static_client(cap, device, -1, ds_max);
+      }
+
+    return true;
+  }
+
+  const char *capname = nullptr;
+  const char *device = nullptr;
+  int ds_max = 2;
+  bool readonly = false;
 };
 
 static Block_device::Errand::Errand_server server;
@@ -54,9 +188,29 @@ parse_args(int argc, char *const *argv)
 {
   int debug_level = 1;
 
+  enum
+  {
+    OPT_CLIENT,
+    OPT_DEVICE,
+    OPT_DS_MAX,
+    OPT_READONLY,
+  };
+
+  struct option const loptions[] =
+  {
+    { "verbose",       no_argument,       NULL, 'v' },
+    { "quiet",         no_argument,       NULL, 'q' },
+    { "check_address", no_argument,       NULL, 'A' },
+    { "client",        required_argument, NULL,  OPT_CLIENT },
+    { "device",        required_argument, NULL,  OPT_DEVICE },
+    { "ds-max",        required_argument, NULL,  OPT_DS_MAX },
+    { "readonly",      no_argument,       NULL,  OPT_READONLY },
+  };
+
+  Client_opts opts;
   for (;;)
     {
-      int opt = getopt(argc, argv, "vqA");
+      int opt = getopt_long(argc, argv, "vqA", loptions, NULL);
       if (opt == -1)
         break;
 
@@ -72,11 +226,29 @@ parse_args(int argc, char *const *argv)
         case 'A':
           Ahci::Hba::check_address_width = false;
           break;
+        case OPT_CLIENT:
+          if (!opts.add_client(&drv))
+            return 1;
+          opts = Client_opts();
+          opts.capname = optarg;
+          break;
+        case OPT_DEVICE:
+          opts.device = optarg;
+          break;
+        case OPT_DS_MAX:
+          opts.ds_max = atoi(optarg);
+          break;
+        case OPT_READONLY:
+          opts.readonly = true;
+          break;
         default:
           Dbg::warn().printf(usage_str, argv[0]);
           return -1;
         }
     }
+
+  if (!opts.add_client(&drv))
+    return 1;
 
   Dbg::set_level(debug_level);
   return optind;
@@ -189,11 +361,6 @@ run(int argc, char *const *argv)
 
   Block_device::Errand::set_server_iface(&server);
   setup_hardware();
-
-  // add static clients as stated on the command line
-  for (int i = arg_idx; i < argc; ++i)
-    if (drv.add_static_client(argv[i]) < 0)
-      Dbg::info().printf("Invalid client description ignored: %s", argv[i]);
 
   Dbg::trace().printf("Beginning server loop...\n");
   server.loop();

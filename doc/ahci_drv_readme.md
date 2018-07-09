@@ -65,13 +65,30 @@ command line options:
 
   This option enables the quiet mode. All output is silenced.
 
-* `<cap_name>,<UUID | SN>,<num_ds>`
+* `--client <cap_name>`
 
-  This triple allows to configure a static client. The first item is the name
-  of a local IPC gate capability with server rights. The second item denotes
-  the partition UUID or disk serial number the client wants to connect to. The
-  last item specifies the upper limit of the number of dataspaces the client is
-  allowed to register with the AHCI driver for virtio DMA.
+  This option starts a new static client option context. The following
+  `device`, `ds-max` and `readonly` options belong to this context until a new
+  client option context is created.
+
+  The option parameter is the name of a local IPC gate capability with server
+  rights.
+
+* `--device <UUID | SN>`
+
+  This option denotes the partition UUID or serial number of the preceeding
+  `client` option.
+
+* `--ds-max <max>`
+
+  This option sets the upper limit of the number of dataspaces the client is
+  able to register with the AHCI driver for virtio DMA.
+
+* `--readonly`
+
+  This option sets the access to disks or partions to read only for the
+  preceeding `client` option.
+
 
 ## Connecting a client
 
@@ -79,7 +96,7 @@ Prior to connecting a client to a virtual block session it has to be created
 using the following Lua function. It has to be called on the client side of the
 IPC gate capability whose server side is bound to the ahci driver.
 
-    create(obj_type, num_ds, <UUID | SN>)
+    create(obj_type, "device=<UUID | SN>", "ds-max=<max>")
 
 * `obj_type`
 
@@ -87,16 +104,15 @@ IPC gate capability whose server side is bound to the ahci driver.
   positive integer. Currently the following objects are supported:
   * `0`: Virtio block host
 
-* `num_ds`
-
-  Specifies the upper limit of the number of dataspaces the client is allowed
-  to register with the AHCI driver for virtio DMA.
-
-* `<UUID | SN>`
+* `"device=<UUID | SN>"`
 
   This string denotes either a partition UUID or a disk serial number the
   client wants to be exported via the Virtio block interface.
 
+* `"ds-max=<max>"`
+
+  Specifies the upper limit of the number of dataspaces the client is allowed
+  to register with the AHCI driver for virtio DMA.
 
 If the `create()` call is successfull a new capability which references an AHCI
 virtio driver is returned. A client uses this capability to communicate with
@@ -109,11 +125,11 @@ below.
 
 * Request a partition with the given UUID
 
-      vda1 = ahci_bus:create(0, 4, "88E59675-4DC8-469A-98E4-B7B021DC7FBE")
+      vda1 = ahci_bus:create(0, "ds-max=5", "device=88E59675-4DC8-469A-98E4-B7B021DC7FBE")
 
 * Request complete disk with the given serial number
 
-      vda = ahci_bus:create(0, 4, "QM00005")
+      vda = ahci_bus:create(0, "ds-max=4", "device=QM00005")
 
 * A more elaborate example with a static client. The client uses the client
   side of the `ahci_cl1` capability to communicate with the AHCI driver.
@@ -127,4 +143,4 @@ below.
           cl1 = ahci_cl1:svr(),
         },
       },
-      "rom/ahci-drv cl1,88E59675-4DC8-469A-98E4-B7B021DC7FBE,5");
+      "rom/ahci-drv --client cl1 --device 88E59675-4DC8-469A-98E4-B7B021DC7FBE --ds-max 5");
