@@ -128,7 +128,7 @@ Hba::register_interrupt_handler(L4::Cap<L4::Icu> icu,
   // find the interrupt
   unsigned char polarity;
   int irq = L4Re::chksys(_dev.irq_enable(&_irq_trigger_type, &polarity),
-                         "Could not enable interrupt.");
+                         "Enabling interrupt.");
 
   Dbg::info().printf("Device: interrupt : %d trigger: %d, polarity: %d\n",
                      irq, (int)_irq_trigger_type, (int)polarity);
@@ -138,14 +138,14 @@ Hba::register_interrupt_handler(L4::Cap<L4::Icu> icu,
 
   trace.printf("Registering server with registry....\n");
   auto cap = L4Re::chkcap(registry->register_irq_obj(this),
-                          "Invalid capability for interrupt.");
+                          "Registering IRQ server object.");
 
   trace.printf("Binding interrupt %d...\n", irq);
-  L4Re::chksys(l4_error(icu->bind(irq, cap)), "Cannot bind interrupt to ICU.");
+  L4Re::chksys(l4_error(icu->bind(irq, cap)), "Binding interrupt to ICU.");
 
   trace.printf("Unmasking interrupt...\n");
   L4Re::chksys(l4_ipc_error(cap->unmask(), l4_utcb()),
-               "Cannot unmask interrupt");
+               "Unmasking interrupt");
 
   trace.printf("Enabling HBA interrupt...\n");
   _regs[Regs::Hba::Is].write(0xFFFFFFFF);
