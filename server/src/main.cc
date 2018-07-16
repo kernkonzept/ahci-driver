@@ -53,6 +53,7 @@ public:
     // default values
     std::string device;
     int num_ds = 2;
+    bool readonly = false;
 
     for (L4::Ipc::Varg p = valist.next(); !p.is_nil(); p = valist.next())
       {
@@ -74,6 +75,9 @@ public:
               }
             continue;
           }
+
+        if (strncmp(p.value<char const *>(), "read-only", p.length()) == 0)
+          readonly = true;
       }
 
     if (device.empty())
@@ -84,7 +88,7 @@ public:
       }
 
     L4::Cap<void> cap;
-    int ret = create_dynamic_client(device, -1, num_ds, &cap);
+    int ret = create_dynamic_client(device, -1, num_ds, &cap, readonly);
     if (ret >= 0)
       res = L4::Ipc::make_cap(cap, L4_CAP_FPAGE_RWSD);
 
@@ -165,8 +169,7 @@ struct Client_opts
             return false;
           }
 
-        // TODO: Pass on 'readonly' flag
-        blk_mgr->add_static_client(cap, device, -1, ds_max);
+        blk_mgr->add_static_client(cap, device, -1, ds_max, readonly);
       }
 
     return true;
