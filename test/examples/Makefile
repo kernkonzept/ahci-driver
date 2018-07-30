@@ -1,6 +1,10 @@
 PKGDIR ?= ../..
 L4DIR  ?= $(PKGDIR)/../..
 
+# force static to avoid dependencies to stdlib-sh
+# as we don't build anything in here at all
+MODE = static
+
 SYSTEMS    := x86-l4f amd64-l4f
 
 TEST_GROUP    := ahci-driver/examples
