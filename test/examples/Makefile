@@ -20,6 +20,8 @@ TEST_TARGET_ahci_md5_async := ahci-md5-async
 
 TEST_EXPECTED := md5sum.output
 
+TEST_TAGS     = !hardware
+
 REQUIRED_MODULES := $(PKGDIR)/examples/md5sum/ahci.io io ahci-drv
 NED_CFG       := $(PKGDIR)/examples/md5sum/ahci.cfg
 
