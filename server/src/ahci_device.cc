@@ -204,6 +204,14 @@ Ahci::Ahci_device::inout_data(l4_uint64_t sector,
   return (ret >= 0) ? L4_EOK : ret;
 }
 
+int
+Ahci::Ahci_device::flush(Block_device::Inout_callback const &cb)
+{
+  // TODO: flush the internal caches before completing the FLUSH
+  cb(0, 0);
+  return L4_EOK;
+}
+
 void
 Ahci::Ahci_device::Device_info::set_device_info(l4_uint16_t const *info)
 {

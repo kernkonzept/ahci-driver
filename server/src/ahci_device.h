@@ -126,6 +126,8 @@ public:
                  Block_device::Inout_callback const &cb,
                  L4Re::Dma_space::Direction dir) override;
 
+  int flush(Block_device::Inout_callback const &cb) override;
+
   void start_device_scan(Block_device::Errand::Callback const &callback) override;
 
   static bool is_compatible_device(Ahci_port *port)
