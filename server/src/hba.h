@@ -38,21 +38,20 @@ private:
    */
   struct Iomem
   {
-    l4_addr_t vaddr;
+    L4Re::Rm::Unique_region<l4_addr_t> vaddr;
 
     Iomem(l4_addr_t phys_addr, L4::Cap<L4Re::Dataspace> iocap)
     {
       L4Re::chksys(L4Re::Env::env()->rm()->attach(&vaddr, L4_PAGESIZE,
-                                                  L4Re::Rm::Search_addr,
+                                                  L4Re::Rm::Search_addr
+                                                  | L4Re::Rm::Cache_uncached,
                                                   L4::Ipc::make_cap_rw(iocap),
                                                   phys_addr, L4_PAGESHIFT));
     }
 
-    ~Iomem() { L4Re::Env::env()->rm()->detach(vaddr, 0); }
-
     l4_addr_t port_base_address(unsigned num) const
     {
-      return vaddr + Port_base + Port_size * num;
+      return vaddr.get() + Port_base + Port_size * num;
     }
 
     enum Mem_config
