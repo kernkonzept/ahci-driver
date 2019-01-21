@@ -17,9 +17,11 @@
 #include <l4/cxx/ipc_server>
 
 #include <l4/util/atomic.h>
+#include <l4/util/bitops.h>
 #include <l4/l4virtio/l4virtio>
 #include <l4/l4virtio/virtqueue>
 #include <l4/l4virtio/virtio_block.h>
+#include <l4/sys/consts.h>
 
 #include <cstring>
 #include <vector>
@@ -340,10 +342,15 @@ public:
     unsigned queuesz = max_queue_size(0);
     l4_size_t totalsz = l4_round_page(usermem);
 
+    l4_uint64_t const header_offset =
+      l4_round_size(_queue.total_size(queuesz),
+                    l4util_bsr(alignof(l4virtio_block_header_t)));
+    l4_uint64_t const status_offset = header_offset + queuesz * Header_size;
+    l4_uint64_t const usermem_offset = l4_round_page(status_offset + queuesz);
+
     // reserve space for one header/status per descriptor
     // TODO Should be reduced to 1/3 but this way no freelist is needed.
-    totalsz += l4_round_page(_queue.total_size(queuesz)
-                             + queuesz * (Header_size + 1));
+    totalsz += usermem_offset;
 
     _queue_ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
     auto *e = L4Re::Env::env();
@@ -367,18 +374,15 @@ public:
     config_queue(0, queuesz, devaddr, devaddr + _queue.avail_offset(),
                  devaddr + _queue.used_offset());
 
-    l4_uint64_t offset = _queue.total_size();
-    _header_addr = devaddr + offset;
-    _headers = (l4virtio_block_header_t *) (baseaddr + offset);
+    _header_addr = devaddr + header_offset;
+    _headers = (l4virtio_block_header_t *) (baseaddr + header_offset);
 
-    offset += queuesz * Header_size;
-    _status_addr = devaddr + offset;
-    _status = (unsigned char *) (baseaddr + offset);
+    _status_addr = devaddr + status_offset;
+    _status = (unsigned char *) (baseaddr + status_offset);
 
-    offset = l4_round_page(offset + queuesz);
-    user_devaddr = Ptr<void>(devaddr + offset);
+    user_devaddr = Ptr<void>(devaddr + usermem_offset);
     if (userdata)
-      *userdata = (void *) (baseaddr + offset);
+      *userdata = (void *) (baseaddr + usermem_offset);
 
     // setup the callback mechanism
     _pending.assign(queuesz, Request());
