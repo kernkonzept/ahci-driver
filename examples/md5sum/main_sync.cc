@@ -59,7 +59,7 @@ static void run()
       L4Re::chksys(c.add_block(h, devaddr, L4_PAGESIZE),
                    "Add receiver block");
       L4Re::chksys(c.process_request(h),
-                   "Process incomming block");
+                   "Process incoming block");
       md5sum.update(static_cast<unsigned char *>(block), L4_PAGESIZE);
     }
 

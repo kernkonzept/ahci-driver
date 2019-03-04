@@ -137,7 +137,7 @@ private:
 
     if (num < INT_MIN || num > INT_MAX || *endp != '\0')
       {
-        Dbg::warn().printf("Bad paramter '%s'. Number required.\n", prefix);
+        Dbg::warn().printf("Bad parameter '%s'. Number required.\n", prefix);
         L4Re::chksys(-L4_EINVAL);
       }
 

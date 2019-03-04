@@ -76,7 +76,7 @@ command line options:
 
 * `--device <UUID | SN>`
 
-  This option denotes the partition UUID or serial number of the preceeding
+  This option denotes the partition UUID or serial number of the preceding
   `client` option.
 
 * `--ds-max <max>`
@@ -86,8 +86,8 @@ command line options:
 
 * `--readonly`
 
-  This option sets the access to disks or partions to read only for the
-  preceeding `client` option.
+  This option sets the access to disks or partitions to read only for the
+  preceding `client` option.
 
 
 ## Connecting a client
@@ -114,7 +114,7 @@ IPC gate capability whose server side is bound to the ahci driver.
   Specifies the upper limit of the number of dataspaces the client is allowed
   to register with the AHCI driver for virtio DMA.
 
-If the `create()` call is successfull a new capability which references an AHCI
+If the `create()` call is successful a new capability which references an AHCI
 virtio driver is returned. A client uses this capability to communicate with
 the AHCI driver using the Virtio block protocol.
 

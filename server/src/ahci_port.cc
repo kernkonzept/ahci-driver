@@ -72,7 +72,7 @@ int
 Command_slot::setup_data(Fis::Datablock const &data, l4_uint32_t sector_size)
 {
 #if (__BYTE_ORDER == __BIG_ENDIAN)
-#error "Big endlian not implemented."
+#error "Big endian not implemented."
 #endif
 
   unsigned i = 0;
