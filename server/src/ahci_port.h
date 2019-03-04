@@ -175,7 +175,7 @@ public:
   /**
    * Fill data table from a FIS datablock structure.
    *
-   * \param data         Chained listed of data block descriptors.
+   * \param data         Chained list of data block descriptors.
    * \param sector_size  Size of a logical sector in bytes.
    */
   int setup_data(Fis::Datablock const &data, l4_uint32_t sector_size);
@@ -228,7 +228,7 @@ class Ahci_port
   struct Command_data
   {
     Command_header headers[32];
-    unsigned char  fis[32][32];
+    unsigned char  fis[256]; // FIS receive area
     Command_table  tables[];
 
     void dma_flush(unsigned slot)
