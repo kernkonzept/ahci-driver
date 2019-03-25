@@ -170,7 +170,7 @@ Ahci::Ahci_device::inout_data(l4_uint64_t sector,
 
   if (dir == L4Re::Dma_space::Direction::To_device)
     {
-      task.flags = Fis::Chf_write | Fis::Chf_clr_busy;
+      task.flags = Fis::Chf_write;
       if (_devinfo.features.dma)
         task.command = _devinfo.features.lba48 ? Ata::Cmd::Write_dma_ext
                                                : Ata::Cmd::Write_dma;
@@ -180,7 +180,7 @@ Ahci::Ahci_device::inout_data(l4_uint64_t sector,
     }
   else if (dir == L4Re::Dma_space::Direction::From_device)
     {
-      task.flags = Fis::Chf_clr_busy;
+      task.flags = 0;
       if (_devinfo.features.dma)
         task.command = _devinfo.features.lba48 ? Ata::Cmd::Read_dma_ext
                                                : Ata::Cmd::Read_dma;
