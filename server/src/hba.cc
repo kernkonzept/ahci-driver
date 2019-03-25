@@ -70,7 +70,8 @@ Hba::Hba(L4vbus::Pci_dev const &dev,
 
 void Hba::scan_ports(std::function<void(Ahci_port *)> callback)
 {
-  int ncs = features().ncs();
+  // the raw value is 0-based, thus add one to get the real number
+  int ncs = features().ncs() + 1;
   for (auto &p : _ports)
     {
       if (p.device_type() != Ahci_port::Ahcidev_none)
