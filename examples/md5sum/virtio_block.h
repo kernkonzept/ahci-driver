@@ -63,10 +63,6 @@ public:
     _next_devaddr = L4_SUPERPAGESIZE;
 
     auto *e = L4Re::Env::env();
-    L4Re::chksys(e->rm()->attach(&_config, L4_PAGESIZE, L4Re::Rm::Search_addr,
-                                 L4::Ipc::make_cap_rw(_config_cap.get()), 0,
-                                 L4_PAGESHIFT),
-                 "Cannot attach config dataspace");
 
     L4Re::chksys(l4_error(e->factory()->create(_guest_irq.get())),
                  "Cannot create guest irq");
@@ -74,6 +70,13 @@ public:
     L4Re::chksys(_device->register_iface(_guest_irq.get(), _host_irq.get(),
                                          _config_cap.get()),
                  "Error registering interface with device");
+
+    L4Re::chksys(e->rm()->attach(&_config, L4_PAGESIZE,
+                                 L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,
+                                 L4::Ipc::make_cap_rw(_config_cap.get()), 0,
+                                 L4_PAGESHIFT),
+                 "Cannot attach config dataspace");
+
 
     if (memcmp(&_config->magic, "virt", 4) != 0)
       L4Re::chksys(-L4_ENODEV, "Device config has wrong magic value");
@@ -361,7 +364,8 @@ public:
 
     // Now sort out which region goes where in the dataspace.
     l4_addr_t baseaddr = 0;
-    L4Re::chksys(e->rm()->attach(&baseaddr, totalsz, L4Re::Rm::Search_addr,
+    L4Re::chksys(e->rm()->attach(&baseaddr, totalsz,
+                                 L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,
                                  L4::Ipc::make_cap_rw(_queue_ds), 0, L4_PAGESHIFT),
                  "Cannot attach dataspace for virtio structures.");
 

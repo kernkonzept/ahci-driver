@@ -165,7 +165,8 @@ Ahci_port::initialize_memory(unsigned maxslots)
                                      | L4Re::Mem_alloc::Pinned),
                "Allocate memory for command data.");
 
-  L4Re::chksys(e->rm()->attach(&_cmd_data, memsz, L4Re::Rm::Search_addr,
+  L4Re::chksys(e->rm()->attach(&_cmd_data, memsz,
+                               L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,
                                L4::Ipc::make_cap_rw(_cmddata_cap.get()), 0,
                                L4_PAGESHIFT),
                "Attach command data memory.");
