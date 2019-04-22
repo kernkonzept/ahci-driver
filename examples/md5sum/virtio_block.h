@@ -360,7 +360,7 @@ public:
                  "Cannot allocate memory for virtio structures.");
 
     // Now sort out which region goes where in the dataspace.
-    l4_addr_t baseaddr;
+    l4_addr_t baseaddr = 0;
     L4Re::chksys(e->rm()->attach(&baseaddr, totalsz, L4Re::Rm::Search_addr,
                                  L4::Ipc::make_cap_rw(_queue_ds), 0, L4_PAGESHIFT),
                  "Cannot attach dataspace for virtio structures.");
