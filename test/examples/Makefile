@@ -12,7 +12,7 @@ TEST_GROUP    := ahci-driver/examples
 EXTRA_TEST    := ahci_md5_sync ahci_md5_async
 
 # The test image with GPT, will be created in the test setup script
-IMAGE_FILE    = $(OBJ_DIR)/test_ahci.img
+IMAGE_FILE    = $(OBJ_DIR)/test_ahci_$${TEST_TARGET}.img
 TEST_SETUP    = $(SRC_DIR)/create-test-disk.sh $(IMAGE_FILE)
 
 TEST_TARGET_ahci_md5_sync  := ahci-md5-sync
