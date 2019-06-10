@@ -114,7 +114,7 @@ enum Cmd_reg
   Cmd_cr    = (1 << 15), ///< Command List Running
   Cmd_fr    = (1 << 14), ///< FIS Receive Running
   Cmd_mpss  = (1 << 13), ///< Mechanical Presence Switch State
-  Cmd_css   = (1 << 8),  ///< Current command Slot
+  Cmd_ccs   = (1 << 8),  ///< Current command Slot
   Cmd_fre   = (1 << 4),  ///< FIS Receive Enable
   Cmd_clo   = (1 << 3),  ///< Command List Override
   Cmd_pod   = (1 << 2),  ///< Power On Device
