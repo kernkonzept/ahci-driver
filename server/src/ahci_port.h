@@ -367,8 +367,6 @@ public:
 
   /**
    * Process all pending interrupts for this port.
-   *
-   * \param sif  Server interface to use to schedule longer running errands.
    */
   int process_interrupts();
 
