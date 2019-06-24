@@ -29,12 +29,16 @@
 #include <l4/libblock-device/virtio_client.h>
 
 static char const *usage_str =
-"Usage: %s [-vqA] [cap,disk_id,num_ds] ...\n\n"
+"Usage: %s [-vqA] [--client CAP --device UUID [--ds-max NUM] [--readonly]]\n\n"
 "Options:\n"
 " -v   Verbose mode.\n"
-" -q   Quite mode (do not print any warnings).\n"
+" -q   Quiet mode (do not print any warnings).\n"
 " -A   Disable check for address width of device.\n"
-"      Only do this if all physical memory is guaranteed to be below 4GB\n";
+"      Only do this if all physical memory is guaranteed to be below 4GB\n"
+" --client CAP    Add a static client via the CAP capability\n"
+" --device UUID   Specify the UUID of the device or partition\n"
+" --ds-max NUM    Specify maximum number of dataspaces the client can register\n"
+" --readonly      Only allow readonly access to the device\n";
 
 class Blk_mgr
 : public Block_device::Device_mgr<Block_device::Virtio_client>,
