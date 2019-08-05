@@ -84,6 +84,16 @@ command line options:
   This option sets the upper limit of the number of dataspaces the client is
   able to register with the AHCI driver for virtio DMA.
 
+* `--slot-max <max>`
+
+  This option defines the maximum number of requests a single client may
+  have in parallel running on the device. If a positive number is given, then
+  this is considered the absolute number of slots to be used. If a negative
+  number is given, then the client may use all available slots except the number
+  given. In any case, a client gets at least 1 slot and at most the number of
+  slots available in hardware. This parameter is only valid when a client
+  accesses a partition and ignored otherwise.
+
 * `--readonly`
 
   This option sets the access to disks or partitions to read only for the
@@ -96,7 +106,7 @@ Prior to connecting a client to a virtual block session it has to be created
 using the following Lua function. It has to be called on the client side of the
 IPC gate capability whose server side is bound to the ahci driver.
 
-    create(obj_type, "device=<UUID | SN>", "ds-max=<max>")
+    create(obj_type, "device=<UUID | SN>", "ds-max=<max>"[, "slot-max=<max>"])
 
 * `obj_type`
 
@@ -113,6 +123,11 @@ IPC gate capability whose server side is bound to the ahci driver.
 
   Specifies the upper limit of the number of dataspaces the client is allowed
   to register with the AHCI driver for virtio DMA.
+
+* `"slot-max=<max>"`
+
+  Specifies the maximum number of requests that will be processed in parallel
+  by the AHCI device. See `--slot-max` option above for details.
 
 If the `create()` call is successful a new capability which references an AHCI
 virtio driver is returned. A client uses this capability to communicate with

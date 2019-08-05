@@ -20,6 +20,7 @@
 #include <l4/vbus/vbus>
 #include <l4/vbus/vbus_pci>
 
+#include "ahci_partition.h"
 #include "ahci_port.h"
 #include "ahci_device.h"
 #include "hba.h"
@@ -40,13 +41,16 @@ static char const *usage_str =
 " --ds-max NUM    Specify maximum number of dataspaces the client can register\n"
 " --readonly      Only allow readonly access to the device\n";
 
+using Base_device_mgr =
+  Block_device::Device_mgr<Block_device::Virtio_client, Ahci::Partitioned_device>;
+
 class Blk_mgr
-: public Block_device::Device_mgr<Block_device::Virtio_client>,
+: public Base_device_mgr,
   public L4::Epiface_t<Blk_mgr, L4::Factory>
 {
 public:
   Blk_mgr(L4Re::Util::Object_registry *registry)
-  : Block_device::Device_mgr<Block_device::Virtio_client>(registry)
+  : Base_device_mgr(registry)
   {}
 
   long op_create(L4::Factory::Rights, L4::Ipc::Cap<void> &res, l4_umword_t,
@@ -58,6 +62,7 @@ public:
     std::string device;
     int num_ds = 2;
     bool readonly = false;
+    int max_slots = 0;
 
     for (L4::Ipc::Varg p = valist.next(); !p.is_nil(); p = valist.next())
       {
@@ -79,7 +84,8 @@ public:
               }
             continue;
           }
-
+        if (parse_int_param(p, "slot-max=", &max_slots))
+          continue;
         if (strncmp(p.value<char const *>(), "read-only", p.length()) == 0)
           readonly = true;
       }
@@ -92,7 +98,16 @@ public:
       }
 
     L4::Cap<void> cap;
-    int ret = create_dynamic_client(device, -1, num_ds, &cap, readonly);
+    int ret = create_dynamic_client(device, -1, num_ds, &cap, readonly,
+                [max_slots](Block_device::Device *d)
+                  {
+                    auto *part = dynamic_cast<Ahci::Partitioned_device *>(d);
+                    if (part)
+                      part->set_max_in_flight(max_slots);
+                    else
+                      if (max_slots)
+                        Dbg::warn("slot-max parameter ignored for full disk access.\n");
+                  });
     if (ret >= 0)
       res = L4::Ipc::make_cap(cap, L4_CAP_FPAGE_RWSD);
 
@@ -173,7 +188,17 @@ struct Client_opts
             return false;
           }
 
-        blk_mgr->add_static_client(cap, device, -1, ds_max, readonly);
+        int mx = slot_max;
+        blk_mgr->add_static_client(cap, device, -1, ds_max, readonly,
+          [mx](Block_device::Device *d)
+            {
+              auto *part = dynamic_cast<Ahci::Partitioned_device *>(d);
+              if (part)
+                part->set_max_in_flight(mx);
+              else
+                if (mx)
+                  Dbg::warn("slot-max parameter ignored for full disk access.\n");
+            });
       }
 
     return true;
@@ -183,6 +208,7 @@ struct Client_opts
   const char *device = nullptr;
   int ds_max = 2;
   bool readonly = false;
+  int slot_max = 0;
 };
 
 static Block_device::Errand::Errand_server server;
@@ -200,6 +226,7 @@ parse_args(int argc, char *const *argv)
     OPT_CLIENT,
     OPT_DEVICE,
     OPT_DS_MAX,
+    OPT_SLOT_MAX,
     OPT_READONLY,
   };
 
@@ -211,6 +238,7 @@ parse_args(int argc, char *const *argv)
     { "client",        required_argument, NULL,  OPT_CLIENT },
     { "device",        required_argument, NULL,  OPT_DEVICE },
     { "ds-max",        required_argument, NULL,  OPT_DS_MAX },
+    { "slot-max",      required_argument, NULL,  OPT_SLOT_MAX },
     { "readonly",      no_argument,       NULL,  OPT_READONLY },
   };
 
@@ -244,6 +272,9 @@ parse_args(int argc, char *const *argv)
           break;
         case OPT_DS_MAX:
           opts.ds_max = atoi(optarg);
+          break;
+        case OPT_SLOT_MAX:
+          opts.slot_max = atoi(optarg);
           break;
         case OPT_READONLY:
           opts.readonly = true;
