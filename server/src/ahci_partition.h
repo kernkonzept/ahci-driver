@@ -33,13 +33,18 @@ public:
       return -L4_EBUSY;
 
     ++_current_in_flight;
-    return Block_device::Partitioned_device::inout_data(
+    int r = Block_device::Partitioned_device::inout_data(
              sector, blocks,
              [this, cb](int error, l4_size_t sz)
                {
                  --_current_in_flight;
                  cb(error, sz);
                }, dir);
+
+    if (r < 0)
+      --_current_in_flight;
+
+    return r;
   }
 
   int flush(Block_device::Inout_callback const &cb) override
@@ -48,13 +53,17 @@ public:
       return -L4_EBUSY;
 
     ++_current_in_flight;
-
-    return Block_device::Partitioned_device::flush(
+    int r = Block_device::Partitioned_device::flush(
              [this, cb](int error, l4_size_t sz)
                {
                  --_current_in_flight;
                  cb(error, sz);
                });
+
+    if (r < 0)
+      --_current_in_flight;
+
+    return r;
   }
 
   /**
