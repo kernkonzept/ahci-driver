@@ -58,7 +58,7 @@ public:
   }
 
   /**
-   * Set the number of request that may be in flight in parallel.
+   * Set the number of requests that may be in flight in parallel.
    *
    * \param mx  Number of parallel requests. When larger than 0, then it
    *            is considered the absolute number of slots to use. When smaller
