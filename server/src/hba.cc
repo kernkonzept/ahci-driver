@@ -14,7 +14,6 @@
 #include <l4/vbus/vbus>
 #include <l4/vbus/vbus_pci>
 #include <l4/vbus/vbus_interfaces.h>
-#include <l4/sys/kdebug.h>
 #include <cstring>
 
 #include "hba.h"
