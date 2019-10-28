@@ -141,6 +141,19 @@ private:
     return val;
   }
 
+  l4_uint16_t cfg_read_16(l4_uint32_t reg) const
+  {
+    l4_uint32_t val;
+    L4Re::chksys(_dev.cfg_read(reg, &val, 16));
+
+    return val;
+  }
+
+  void cfg_write_16(l4_uint32_t reg, l4_uint16_t val)
+  {
+    L4Re::chksys(_dev.cfg_write(reg, val, 16));
+  }
+
   L4vbus::Pci_dev _dev;
   Iomem _iomem;
   Hw::Register_block<32> _regs;

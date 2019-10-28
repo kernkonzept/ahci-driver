@@ -36,6 +36,13 @@ Hba::Hba(L4vbus::Pci_dev const &dev,
                cfg_read(0x24) & 0xFFFFF000, _iomem.vaddr.get(),
                _regs[Regs::Hba::Cap].read(), _regs[Regs::Hba::Cap2].read());
 
+  l4_uint16_t cmd = cfg_read_16(0x04);
+  if (!(cmd & 4))
+    {
+      trace.printf("Enabling PCI bus master\n");
+      cfg_write_16(0x04, cmd | 4);
+    }
+
   // set AHCI mode -- XXX done by BIOS?
   _regs[Regs::Hba::Ghc].set(Regs::Hba::Ghc_ae);
 
