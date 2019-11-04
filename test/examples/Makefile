@@ -5,7 +5,7 @@ L4DIR  ?= $(PKGDIR)/../..
 # as we don't build anything in here at all
 MODE = static
 
-SYSTEMS    := x86-l4f amd64-l4f
+SYSTEMS    := x86-l4f amd64-l4f arm-l4f arm64-l4f
 
 TEST_GROUP    := ahci-driver/examples
 
@@ -25,7 +25,17 @@ TEST_TAGS     = !hardware
 REQUIRED_MODULES := $(PKGDIR)/examples/md5sum/ahci.io io ahci-drv
 NED_CFG       := $(PKGDIR)/examples/md5sum/ahci.cfg
 
-QEMU_ARGS     = -device ahci,id=ahci0 -drive if=none,file=$(IMAGE_FILE),format=raw,id=drive-sata0-0-0 -device ide-drive,bus=ahci0.0,drive=drive-sata0-0-0,id=sata0-0-0
+QEMU_ARGS     = -device ahci,id=ahci0 \
+		-drive if=none,file=$(IMAGE_FILE),format=raw,id=drive-sata0-0-0 \
+		-device ide-drive,bus=ahci0.0,drive=drive-sata0-0-0,id=sata0-0-0
+
+ifeq ($(ARCH),arm)
+  # We are not able to access the 64-bit MMIO region on ARM32
+  QEMU_ARGS += -machine virt,highmem=off
+endif
+ifneq ($(filter arm arm64,$(ARCH)),)
+  REQUIRED_MODULES += $(PKGDIR)/examples/md5sum/pcie-ecam.io
+endif
 
 include $(L4DIR)/mk/test.mk
 

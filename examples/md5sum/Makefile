@@ -1,7 +1,7 @@
 PKGDIR ?= ../..
 L4DIR  ?= $(PKGDIR)/../..
 
-SYSTEMS    := x86-l4f amd64-l4f arm-l4f
+SYSTEMS    := x86-l4f amd64-l4f arm-l4f arm64-l4f
 
 TARGET = ahci-md5-sync ahci-md5-async
 SRC_CC_ahci-md5-sync = main_sync.cc md5.cc

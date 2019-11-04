@@ -1,3 +1,5 @@
+-- vim:set ft=lua:
+
 local hw = Io.system_bus()
 
 Io.add_vbus("ahcidrv", Io.Vi.System_bus
@@ -7,4 +9,3 @@ Io.add_vbus("ahcidrv", Io.Vi.System_bus
     pci_hd = wrap(hw:match("PCI/CC_01"));
   }
 })
-
