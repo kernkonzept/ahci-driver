@@ -124,6 +124,11 @@ public:
    */
   int driver_acknowledge()
   {
+    if (!l4virtio_get_feature(_config->dev_features_map,
+                              L4VIRTIO_FEATURE_VERSION_1))
+      L4Re::chksys(-L4_ENODEV,
+                   "Require Virtio 1.0 device; Legacy device not supported.");
+
     _config->driver_features_map[0] = _config->dev_features_map[0];
     _config->driver_features_map[1] = _config->dev_features_map[1];
 
