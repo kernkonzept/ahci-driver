@@ -132,6 +132,11 @@ public:
     _config->driver_features_map[0] = _config->dev_features_map[0];
     _config->driver_features_map[1] = _config->dev_features_map[1];
 
+    _device->set_status(_config->status | L4VIRTIO_STATUS_FEATURES_OK);
+
+    if (!(_config->status & L4VIRTIO_STATUS_FEATURES_OK))
+      L4Re::chksys(-L4_EINVAL, "Negotiation of device features.");
+
     _device->set_status(_config->status | L4VIRTIO_STATUS_DRIVER_OK);
 
     if (_config->status & L4VIRTIO_STATUS_FAILED)
@@ -139,7 +144,6 @@ public:
 
     return L4_EOK;
   }
-
 
   /**
    * Share a dataspace with the device.
