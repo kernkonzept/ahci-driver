@@ -91,7 +91,7 @@ public:
     status |= L4VIRTIO_STATUS_DRIVER;
     _device->set_status(status);
 
-    if (_config->status & L4VIRTIO_STATUS_FAILED)
+    if (_config->fail_state())
       L4Re::chksys(-L4_EIO, "Device failure during initialisation.");
   }
 
@@ -112,7 +112,7 @@ public:
   }
 
   /// Return true if the device is in a fail state.
-  bool failed() const { return _config->status & L4VIRTIO_STATUS_FAILED; }
+  bool fail_state() const { return _config->fail_state(); }
 
   /**
    * Finalize handshake with the device.
@@ -139,7 +139,7 @@ public:
 
     _device->set_status(_config->status | L4VIRTIO_STATUS_DRIVER_OK);
 
-    if (_config->status & L4VIRTIO_STATUS_FAILED)
+    if (_config->fail_state())
       return -L4_EIO;
 
     return L4_EOK;

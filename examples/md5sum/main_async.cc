@@ -92,7 +92,7 @@ void finish_reading_sector(unsigned char status)
     L4Re::chksys(-L4_EIO, "Driver reports IO error. Aborting.");
 
   // Device still alive and kicking?
-  if (c.failed())
+  if (c.fail_state())
     L4Re::chksys(-L4_EIO, "Driver failed. Aborting.");
 
   sectors_done++;
