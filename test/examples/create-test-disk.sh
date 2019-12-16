@@ -4,13 +4,15 @@
 
 image=$1
 
+EXIT_SKIP=69
+
 if which sgdisk; then
   sgdisk=sgdisk
 elif [ -x /sbin/sgdisk ]; then
   sgdisk=/sbin/sgdisk
 else
   echo "Cannot find sgdisk tool for creating GPT."
-  exit 2
+  exit $EXIT_SKIP
 fi
 
 seq 400000 | dd bs=1024 count=2048 of=$image
