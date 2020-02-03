@@ -64,7 +64,7 @@ public:
     bool readonly = false;
     int max_slots = 0;
 
-    for (L4::Ipc::Varg p = valist.next(); !p.is_nil(); p = valist.next())
+    for (L4::Ipc::Varg p: valist)
       {
         if (!p.is_of<char const *>())
           {
