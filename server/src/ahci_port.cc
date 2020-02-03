@@ -113,30 +113,14 @@ Ahci_port::attach(l4_addr_t base_addr, unsigned buswidth,
 
   _state = S_present;
 
-  // detect device type (borrowed from linux)
-  if (device_state() == 3)
-    {
-      l4_uint32_t tmp = _regs[Regs::Port::Sig];
-      unsigned lbah = (tmp >> 24) & 0xff;
-      unsigned lbam = (tmp >> 16) & 0xff;
-
-      if ((lbam == 0) && (lbah == 0))
-        _devtype = Ahcidev_ata;
-      else if ((lbam == 0x14) && (lbah == 0xeb))
-        _devtype = Ahcidev_atapi;
-      else if ((lbam == 0x69) && (lbah == 0x96))
-        _devtype = Ahcidev_pmp;
-      else if ((lbam == 0x3c) && (lbah == 0xc3))
-        _devtype = Ahcidev_semb;
-      else
-        _devtype = Ahcidev_unknown;
-    }
-  else
+  if (device_state() != 3)
     {
       _devtype = Ahcidev_none;
       return -L4_ENODEV;
     }
 
+  // device type cannot be determined as long as the FIS buffer is not enabled!
+  _devtype = Ahcidev_unknown;
   _dma_space = dma_space;
 
   return L4_EOK;
@@ -195,6 +179,25 @@ Ahci_port::initialize_memory(unsigned maxslots)
 
   // reset error register
   _regs[Regs::Port::Serr] = 0xFFFFFFFF;
+
+  // Reading the device signature works only after the FIS buffer is enabled
+  // by setting 'Cmd_fre' in PxCMD. On bare metal it might be even required to
+  // trigger a D2H register FIS transfer (needs testing!) but not on QEMU.
+  l4_uint32_t tmp = _regs[Regs::Port::Sig];
+  unsigned lbah = (tmp >> 24) & 0xff;
+  unsigned lbam = (tmp >> 16) & 0xff;
+
+  // detect device type (borrowed from Linux)
+  if ((lbam == 0) && (lbah == 0))
+    _devtype = Ahcidev_ata;
+  else if ((lbam == 0x14) && (lbah == 0xeb))
+    _devtype = Ahcidev_atapi;
+  else if ((lbam == 0x69) && (lbah == 0x96))
+    _devtype = Ahcidev_pmp;
+  else if ((lbam == 0x3c) && (lbah == 0xc3))
+    _devtype = Ahcidev_semb;
+  else
+    _devtype = Ahcidev_unknown;
 
   // Initialize command slots
   _slots.clear();
