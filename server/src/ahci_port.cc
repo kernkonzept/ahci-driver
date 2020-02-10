@@ -556,25 +556,30 @@ Ahci_port::process_interrupts()
 
   l4_uint32_t istate = _regs[Regs::Port::Is];
 
-  if (istate & (Regs::Port::Is_mask_status))
+  if (istate & Regs::Port::Is_mask_status)
     {
       Dbg::warn().printf("Device state changed.\n");
+      // state changed: clear interrupts
+      _regs[Regs::Port::Is] = istate & Regs::Port::Is_mask_status;
       // TODO Restart the device detection cycle here.
       abort([=]{ reset([]{}); });
-      // clear interrupts
-      _regs[Regs::Port::Is] = istate;
       // XXX this should be propagated to the driver running the device
       return -L4_EIO;
     }
 
-
   if (istate & (Regs::Port::Is_mask_fatal | Regs::Port::Is_mask_error))
-    handle_error();
+    {
+      // error: clear interrupts
+      _regs[Regs::Port::Is]
+        = istate & (Regs::Port::Is_mask_fatal | Regs::Port::Is_mask_error);
+      handle_error();
+    }
   else
-    check_pending_commands();
-
-  // clear interrupts
-  _regs[Regs::Port::Is] = Regs::Port::Is_mask_data;
+    {
+      // data: clear interrupts
+      _regs[Regs::Port::Is] = Regs::Port::Is_mask_data;
+      check_pending_commands();
+    }
 
   return L4_EOK;
 }
