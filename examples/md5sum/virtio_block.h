@@ -7,12 +7,12 @@
 #pragma once
 
 #include <l4/sys/factory>
+#include <l4/sys/semaphore>
 #include <l4/re/dataspace>
 #include <l4/re/env>
 #include <l4/re/util/unique_cap>
 #include <l4/re/util/object_registry>
 #include <l4/re/error_helper>
-#include <l4/cxx/ipc_server>
 
 #include <l4/util/atomic.h>
 #include <l4/util/bitops.h>
@@ -37,7 +37,9 @@ public:
   /**
    * Contacts the device and starts the initial handshake.
    *
-   * \param srvcap    Capability for device communication.
+   * \param srvcap         Capability for device communication.
+   * \param manage_notify  Set up a semaphore for notifications from
+   *                       the device. See below.
    *
    * \throws L4::Runtime_error if the initialisation fails
    *
@@ -45,8 +47,16 @@ public:
    * channels and the configuration dataspace. After this is done,
    * the caller can set up any dataspaces it needs. The initialisation
    * then needs to be finished by calling driver_acknowledge().
+   *
+   * Per default this function creates and registers a semaphore for receiving
+   * notification from the device. This semaphore is used in the blocking
+   * functions send_and_wait(), wait() and next_used().
+   *
+   * When `manage_notify` is false, then the caller may manually register
+   * and handle notification interrupts from the device. This is for example
+   * useful, when the client runs in an application with a server loop.
    */
-  void driver_connect(L4::Cap<L4virtio::Device> srvcap)
+  void driver_connect(L4::Cap<L4virtio::Device> srvcap, bool manage_notify = true)
   {
     _device = srvcap;
 
@@ -88,7 +98,7 @@ public:
     if (_config->fail_state())
       L4Re::chksys(-L4_EIO, "Device failure during initialisation.");
 
-    // Set up the interrupt for notification of the device.
+    // Set up the interrupt used to notify the device about events.
     // (only supporting one interrupt with index 0 at the moment)
 
     _host_irq = L4Re::chkcap(L4Re::Util::make_unique_cap<L4::Irq>(),
@@ -99,32 +109,28 @@ public:
 
     // Set up the interrupt to get notifications from the device.
     // (only supporting one interrupt with index 0 at the moment)
+    if (manage_notify)
+      {
+        _driver_notification =
+          L4Re::chkcap(L4Re::Util::make_unique_cap<L4::Semaphore>(),
+                       "Allocate notification capability");
 
-    _guest_irq = L4Re::chkcap(L4Re::Util::make_unique_cap<L4::Irq>(),
-                              "Allocate guest IRQ capability");
+        L4Re::chksys(l4_error(e->factory()->create(_driver_notification.get())),
+                     "Create semaphore for notifications from device");
 
-    L4Re::chksys(l4_error(e->factory()->create(_guest_irq.get())),
-                 "Create guest irq");
-
-    L4Re::chksys(_device->bind(0, _guest_irq.get()),
-                 "Bind driver notification interrupt");
+        L4Re::chksys(_device->bind(0, _driver_notification.get()),
+                     "Bind driver notification interrupt");
+      }
   }
 
   /**
-   * Attach the given thread to the notification interrupt.
+   * Register a triggerable to receive notifications from the device.
    *
-   * \param cap Thread to attach the IRQ to.
-   *
-   * \return L4_EOK or error message.
-   *
-   * This function should only be used, when the device is used
-   * synchronously with send_and_wait. Otherwise the instance
-   * needs to be registered with a server registry.
+   * \param      index  Index of the interrupt.
+   * \param[out] irq    Triggerable to register for notifications.
    */
-  int attach_guest_irq(L4::Cap<L4::Thread> const &cap)
-  {
-    return l4_error(_guest_irq->bind_thread(cap, 0));
-  }
+  int bind_notification_irq(unsigned index, L4::Cap<L4::Triggerable> irq) const
+  { return l4_error(_device->bind(index, irq)); }
 
   /// Return true if the device is in a fail state.
   bool fail_state() const { return _config->fail_state(); }
@@ -225,26 +231,60 @@ public:
    * This function provides a simple mechanism to send requests
    * synchronously. It must not be used with other requests at the same
    * time as it directly waits for a notification on the device irq cap.
+   *
+   * \pre driver_connect() was called with manage_notify.
    */
   int send_and_wait(Virtqueue &queue, l4_uint16_t descno)
   {
-    // send the request away
-    queue.enqueue_descriptor(descno);
-    if (!queue.no_notify_host())
-      _host_irq->trigger();
+    send(queue, descno);
 
     // wait for a reply, we assume that no other
     // request will get in the way.
+    auto head = wait_for_next_used(queue);
+
+    if (head < 0)
+      return head;
+
+    return (head == descno) ? L4_EOK : -L4_EINVAL;
+  }
+
+  /**
+   * Wait for a notification from the device.
+   *
+   * \param index  Notification slot to wait for.
+   *
+   * \pre driver_connect() was called with manage_notify.
+   */
+  int wait(int index) const
+  {
+    if (index != 0)
+      return -L4_EEXIST;
+
+    return l4_ipc_error(_driver_notification->down(), l4_utcb());
+  }
+
+  /**
+   * Wait for the next item to arrive in the used queue and return it.
+   *
+   * \retval >=0  Descriptor number of item removed from used queue.
+   * \retval <0   IPC error while waiting for notification.
+   *
+   * The call blocks until the next item is available in the used queue.
+   *
+   * \pre driver_connect() was called with manage_notify.
+   */
+  int wait_for_next_used(Virtqueue &queue) const
+  {
     while (true)
       {
-        int err = l4_error(l4_ipc_receive(_guest_irq.get().cap(),
-                                          l4_utcb(), L4_IPC_NEVER));
+        int err = wait(0);
+
         if (err < 0)
           return err;
 
         auto head = queue.find_next_used();
         if (head != Virtqueue::Eoq) // spurious interrupt?
-          return (head == descno) ? L4_EOK : -L4_EINVAL;
+          return head;
       }
   }
 
@@ -265,7 +305,7 @@ private:
   /**
    * Get the next free address, covering the given area.
    *
-   * \param size Size of requested area.
+   * \param size  Size of requested area.
    *
    * Builds up a virtual address space for the device.
    * Simply give out the memory linearly, it is unlikely that a client
@@ -291,7 +331,7 @@ protected:
   L4::Cap<L4virtio::Device> _device;
   L4Re::Rm::Unique_region<L4virtio::Device::Config_hdr *> _config;
   l4_umword_t _next_devaddr;
-  L4Re::Util::Unique_cap<L4::Irq> _guest_irq;
+  L4Re::Util::Unique_cap<L4::Semaphore> _driver_notification;
 
 private:
   L4Re::Util::Unique_cap<L4::Irq> _host_irq;
@@ -302,7 +342,7 @@ private:
 /**
  * Simple class for accessing a virtio block device synchronously.
  */
-class Block_device : public Device, public L4::Irq_handler_object
+class Block_device : public Device
 {
 public:
   typedef std::function<void(unsigned char)> Callback;
@@ -422,19 +462,6 @@ public:
   }
 
   /**
-   * Register the server with a server registry.
-   *
-   * \param registry Registry to attach to.
-   *
-   * The server is needed to handle device notifications, when
-   * requests are ready.
-   */
-  void register_server(L4Re::Util::Object_registry *registry)
-  {
-    registry->register_obj(this, _guest_irq.get());
-  }
-
-  /**
    * Return a reference to the device configuration.
    */
   l4virtio_block_config_t const &device_config() const
@@ -483,12 +510,16 @@ public:
    * \param handle  Handle to request previously set up with start_request().
    * \param addr    Address of data block in device address space.
    * \param size    Size of data block.
+   *
+   * \retval L4_OK       Block was sucessfully added.
+   * \retval -L4_EAGAIN  No descriptors available. Try again later.
+   *
    */
   int add_block(Handle handle, Ptr<void> addr, l4_uint32_t size)
   {
     l4_uint16_t descno = _queue.alloc_descriptor();
     if (descno == Virtqueue::Eoq)
-      return -L4_ENOMEM;
+      return -L4_EAGAIN;
 
     Request &req = _pending[handle.head];
     L4virtio::Virtqueue::Desc &desc = _queue.desc(descno);
@@ -513,6 +544,9 @@ public:
    *
    * \param handle  Handle to request to send to the device
    *
+   * \retval L4_OK       Request was successfuly scheduled.
+   * \retval -L4_EAGAIN  No descriptors available. Try again later.
+   *
    * Sends a request to the driver that was previously set up
    * with start_request() and add_block() and wait for it to be
    * executed.
@@ -522,7 +556,7 @@ public:
     // add the status bit
     auto descno = _queue.alloc_descriptor();
     if (descno == Virtqueue::Eoq)
-      return -L4_ENOMEM;
+      return -L4_EAGAIN;
 
     Request &req = _pending[handle.head];
     L4virtio::Virtqueue::Desc &desc = _queue.desc(descno);
@@ -597,25 +631,28 @@ public:
     _pending[handle.head].tail = Virtqueue::Eoq;
   }
 
-  int dispatch(l4_umword_t, L4::Ipc::Iostream &)
+  /**
+   * Process and free all items in the used queue.
+   *
+   * If the request has a callback registered it is called after the
+   * item has been removed from the queue.
+   */
+  void process_used_queue()
   {
-    l4_uint16_t descno = _queue.find_next_used();
-    while (descno != Virtqueue::Eoq)
+    for (l4_uint16_t descno = _queue.find_next_used();
+         descno != Virtqueue::Eoq;
+         descno = _queue.find_next_used()
+         )
       {
-        if (descno < _queue.num() && _pending[descno].tail != Virtqueue::Eoq)
-          {
-            unsigned char status = _status[descno];
-            free_request(Handle(descno));
-            if (_pending[descno].callback)
-              _pending[descno].callback(status);
-          }
-        else
+        if (descno >= _queue.num() || _pending[descno].tail == Virtqueue::Eoq)
           L4Re::chksys(-L4_ENOSYS, "Bad descriptor number");
 
-        descno = _queue.find_next_used();
-      }
+        unsigned char status = _status[descno];
+        free_request(Handle(descno));
 
-    return -L4_ENOREPLY;
+        if (_pending[descno].callback)
+          _pending[descno].callback(status);
+      }
   }
 
 private:

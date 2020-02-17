@@ -1,13 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-only or License-Ref-kk-custom */
 /*
- * (c) 2014 Sarah Hoffmann <sarah.hoffmann@kernkonzept.com>
+ * Copyright (C) 2014-2020 Kernkonzept GmbH.
+ * Author(s): Sarah Hoffmann <sarah.hoffmann@kernkonzept.com>
  *
- * Simple example that computes the md5sum over the entire disk
- * found behind capability 'dsk'.
  */
 
-#include <l4/cxx/exceptions>
-#include <l4/cxx/iostream>
-
+/**
+ * \file
+ *
+ * Simple example that computes the md5sum over an entire AHCI disk
+ * found behind capability 'dsk'.
+ */
 #include <l4/util/util.h>
 
 #include "virtio_block.h"
@@ -18,6 +21,11 @@ class Dbg : public L4Re::Util::Dbg
 {
 public:
   Dbg(unsigned long mask) : L4Re::Util::Dbg(mask, "ahci-md5sum", "") {}
+};
+
+struct Err : L4Re::Util::Err
+{
+  explicit Err(Level l = Normal) : L4Re::Util::Err(l, "ahci-mmap") {}
 };
 
 
@@ -38,7 +46,6 @@ static void run()
   void *block;
   L4virtio::Ptr<void> devaddr;
   c.setup_device(cap, L4_PAGESIZE, &block, devaddr);
-  L4Re::chksys(c.attach_guest_irq(L4Re::Env::env()->main_thread()));
 
   l4_uint64_t dsksz = c.device_config().capacity;
   unsigned secperpage = L4_PAGESIZE / 512;
@@ -90,15 +97,15 @@ int main(int , char *const *)
     }
   catch (L4::Runtime_error const &e)
     {
-      L4::cerr << e.str() << ":  " << e.extra_str() << "\n";
+      Err().printf("%s: %s\n", e.str(), e.extra_str());
     }
   catch (L4::Base_exception const &e)
     {
-      L4::cerr << "Error: " << e << '\n';
+      Err().printf("Error: %s\n", e.str());
     }
   catch (std::exception const &e)
     {
-      L4::cerr << "Error: " << e.what() << '\n';
+      Err().printf("Error: %s\n", e.what());
     }
 
   return -1;
