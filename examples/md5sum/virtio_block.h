@@ -49,32 +49,28 @@ public:
   void driver_connect(L4::Cap<L4virtio::Device> srvcap)
   {
     _device = srvcap;
-    _guest_irq = L4Re::chkcap(L4Re::Util::make_unique_cap<L4::Irq>(),
-                              "Cannot allocate guest IRQ");
-
-    _host_irq = L4Re::chkcap(L4Re::Util::make_unique_cap<L4::Irq>(),
-                             "Cannot allocate host irq");
-
-    _config_cap = L4Re::chkcap(L4Re::Util::make_unique_cap<L4Re::Dataspace>(),
-                               "Cannot allocate cap for config dataspace");
 
     _next_devaddr = L4_SUPERPAGESIZE;
 
     auto *e = L4Re::Env::env();
 
-    L4Re::chksys(l4_error(e->factory()->create(_guest_irq.get())),
-                 "Cannot create guest irq");
+    // Set up the virtio configuration page.
 
-    L4Re::chksys(_device->register_iface(_guest_irq.get(), _host_irq.get(),
-                                         _config_cap.get()),
-                 "Error registering interface with device");
+    _config_cap = L4Re::chkcap(L4Re::Util::make_unique_cap<L4Re::Dataspace>(),
+                               "Allocate config dataspace capability");
+
+    l4_addr_t ds_offset;
+    L4Re::chksys(_device->device_config(_config_cap.get(), &ds_offset),
+                 "Request virtio config page");
+
+    if (ds_offset & ~L4_PAGEMASK)
+      L4Re::chksys(-L4_EINVAL, "Virtio config page is page aligned.");
 
     L4Re::chksys(e->rm()->attach(&_config, L4_PAGESIZE,
                                  L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,
-                                 L4::Ipc::make_cap_rw(_config_cap.get()), 0,
+                                 L4::Ipc::make_cap_rw(_config_cap.get()), ds_offset,
                                  L4_PAGESHIFT),
-                 "Cannot attach config dataspace");
-
+                 "Attach config dataspace");
 
     if (memcmp(&_config->magic, "virt", 4) != 0)
       L4Re::chksys(-L4_ENODEV, "Device config has wrong magic value");
@@ -91,6 +87,27 @@ public:
 
     if (_config->fail_state())
       L4Re::chksys(-L4_EIO, "Device failure during initialisation.");
+
+    // Set up the interrupt for notification of the device.
+    // (only supporting one interrupt with index 0 at the moment)
+
+    _host_irq = L4Re::chkcap(L4Re::Util::make_unique_cap<L4::Irq>(),
+                             "Allocate host IRQ capability");
+
+    L4Re::chksys(_device->device_notification_irq(0, _host_irq.get()),
+                 "Request device notification interrupt.");
+
+    // Set up the interrupt to get notifications from the device.
+    // (only supporting one interrupt with index 0 at the moment)
+
+    _guest_irq = L4Re::chkcap(L4Re::Util::make_unique_cap<L4::Irq>(),
+                              "Allocate guest IRQ capability");
+
+    L4Re::chksys(l4_error(e->factory()->create(_guest_irq.get())),
+                 "Create guest irq");
+
+    L4Re::chksys(_device->bind(0, _guest_irq.get()),
+                 "Bind driver notification interrupt");
   }
 
   /**
