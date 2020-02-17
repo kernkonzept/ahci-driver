@@ -1,16 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0-only or License-Ref-kk-custom */
 /*
- * Copyright (C) 2015 Kernkonzept GmbH.
+ * Copyright (C) 2015-2020 Kernkonzept GmbH.
  * Author(s): Sarah Hoffmann <sarah.hoffmann@kernkonzept.com>
  *
- * This file is distributed under the terms of the GNU General Public
- * License, version 2.  Please see the COPYING-GPL-2 file for details.
  */
 #pragma once
 
 #include <l4/sys/factory>
 #include <l4/re/dataspace>
 #include <l4/re/env>
-#include <l4/re/util/cap_alloc>
 #include <l4/re/util/unique_cap>
 #include <l4/re/util/object_registry>
 #include <l4/re/error_helper>
@@ -364,38 +362,40 @@ public:
     // TODO Should be reduced to 1/3 but this way no freelist is needed.
     totalsz += usermem_offset;
 
-    _queue_ds = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
+    _queue_ds = L4Re::chkcap(L4Re::Util::make_unique_cap<L4Re::Dataspace>(),
+                             "Allocate queue dataspace capability");
     auto *e = L4Re::Env::env();
-    L4Re::chksys(e->mem_alloc()->alloc(totalsz, _queue_ds,
+    L4Re::chksys(e->mem_alloc()->alloc(totalsz, _queue_ds.get(),
                                        L4Re::Mem_alloc::Continuous
                                        | L4Re::Mem_alloc::Pinned),
-                 "Cannot allocate memory for virtio structures.");
+                 "Allocate memory for virtio structures");
 
     // Now sort out which region goes where in the dataspace.
-    l4_addr_t baseaddr = 0;
-    L4Re::chksys(e->rm()->attach(&baseaddr, totalsz,
+    L4Re::chksys(e->rm()->attach(&_queue_region, totalsz,
                                  L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,
-                                 L4::Ipc::make_cap_rw(_queue_ds), 0, L4_PAGESHIFT),
-                 "Cannot attach dataspace for virtio structures.");
+                                 L4::Ipc::make_cap_rw(_queue_ds.get()), 0,
+                                 L4_PAGESHIFT),
+                 "Attach dataspace for virtio structures");
 
     l4_uint64_t devaddr;
-    L4Re::chksys(register_ds(_queue_ds, 0, totalsz, &devaddr),
-                 "Cannot share virtio datastructures.");
+    L4Re::chksys(register_ds(_queue_ds.get(), 0, totalsz, &devaddr),
+                 "Register queue dataspace with device");
 
-    _queue.init_queue(queuesz, (void *) baseaddr);
+    _queue.init_queue(queuesz, _queue_region.get());
 
     config_queue(0, queuesz, devaddr, devaddr + _queue.avail_offset(),
                  devaddr + _queue.used_offset());
 
     _header_addr = devaddr + header_offset;
-    _headers = (l4virtio_block_header_t *) (baseaddr + header_offset);
+    _headers = reinterpret_cast<l4virtio_block_header_t *>(_queue_region.get()
+                                                           + header_offset);
 
     _status_addr = devaddr + status_offset;
-    _status = (unsigned char *) (baseaddr + status_offset);
+    _status = _queue_region.get() + status_offset;
 
     user_devaddr = Ptr<void>(devaddr + usermem_offset);
     if (userdata)
-      *userdata = (void *) (baseaddr + usermem_offset);
+      *userdata = _queue_region.get() + usermem_offset;
 
     // setup the callback mechanism
     _pending.assign(queuesz, Request());
@@ -602,7 +602,8 @@ public:
   }
 
 private:
-  L4::Cap<L4Re::Dataspace> _queue_ds;
+  L4Re::Util::Unique_cap<L4Re::Dataspace> _queue_ds;
+  L4Re::Rm::Unique_region<unsigned char *> _queue_region;
   l4virtio_block_header_t *_headers;
   unsigned char *_status;
   l4_uint64_t _header_addr;
