@@ -150,7 +150,7 @@ static void run()
   // compute the MD5 sum over the entire device.
   Md5_hash md5sum;
   md5sum.update(data.get(), disk_size * 512);
-  info.printf("MD5SUM of device content: %s\n", md5sum.get().c_str());
+  printf("MD5SUM of device content: %s\n", md5sum.get().c_str());
 }
 
 

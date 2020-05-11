@@ -82,7 +82,7 @@ static void run()
       md5sum.update(static_cast<unsigned char *>(block), remain);
     }
 
-  info.printf("MD5SUM of device content: %s\n", md5sum.get().c_str());
+  printf("MD5SUM of device content: %s\n", md5sum.get().c_str());
 }
 
 
