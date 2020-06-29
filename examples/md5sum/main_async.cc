@@ -11,7 +11,8 @@
  */
 #include <l4/util/util.h>
 
-#include "virtio_block.h"
+#include <l4/l4virtio/client/virtio-block>
+
 #include "dma_mem.h"
 #include "md5.h"
 
