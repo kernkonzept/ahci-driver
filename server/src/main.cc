@@ -41,8 +41,27 @@ static char const *usage_str =
 " --ds-max NUM    Specify maximum number of dataspaces the client can register\n"
 " --readonly      Only allow readonly access to the device\n";
 
-using Base_device_mgr =
-  Block_device::Device_mgr<Block_device::Virtio_client, Ahci::Partitioned_device>;
+struct Ahci_device_factory
+{
+  using Device_type = Block_device::Device;
+  using Client_type = Block_device::Virtio_client;
+
+  static cxx::unique_ptr<Client_type>
+  create_client(cxx::Ref_ptr<Device_type> const &dev, unsigned numds, bool readonly)
+  {
+    return cxx::make_unique<Client_type>(dev, numds, readonly);
+  }
+
+  static cxx::Ref_ptr<Device_type>
+  create_partition(cxx::Ref_ptr<Device_type> const &dev, unsigned partition_id,
+                   Block_device::Partition_info const &pi)
+  {
+    return cxx::Ref_ptr<Device_type>(new Ahci::Partitioned_device(dev, partition_id, pi));
+  }
+};
+
+
+using Base_device_mgr = Block_device::Device_mgr<Ahci_device_factory>;
 
 class Blk_mgr
 : public Base_device_mgr,
