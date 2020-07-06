@@ -70,7 +70,7 @@ Ahci::Ahci_device::start_device_scan(Errand::Callback const &callback)
   // temporarily assume 512-byte sectors for reading the info page
   _devinfo.sector_size = 512;
   auto infopage
-    = cxx::make_ref_obj<Block_device::Inout_memory>(
+    = cxx::make_ref_obj<Block_device::Inout_memory<Ahci_device>>(
         1, this, L4Re::Dma_space::Direction::From_device);
 
 

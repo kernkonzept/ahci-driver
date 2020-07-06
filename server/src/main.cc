@@ -44,7 +44,7 @@ static char const *usage_str =
 struct Ahci_device_factory
 {
   using Device_type = Block_device::Device;
-  using Client_type = Block_device::Virtio_client;
+  using Client_type = Block_device::Virtio_client<Device_type>;
 
   static cxx::unique_ptr<Client_type>
   create_client(cxx::Ref_ptr<Device_type> const &dev, unsigned numds, bool readonly)
@@ -61,7 +61,8 @@ struct Ahci_device_factory
 };
 
 
-using Base_device_mgr = Block_device::Device_mgr<Ahci_device_factory>;
+using Base_device_mgr = Block_device::Device_mgr<Block_device::Device,
+                                                 Ahci_device_factory>;
 
 class Blk_mgr
 : public Base_device_mgr,
