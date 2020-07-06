@@ -15,7 +15,9 @@
 
 namespace Ahci {
 
-class Ahci_device : public Block_device::Base_device
+struct Device : Block_device::Device {};
+
+class Ahci_device : public Block_device::Device_with_request_queue<Device>
 {
   /**
    * Layout of device info page returned by the identify device command.

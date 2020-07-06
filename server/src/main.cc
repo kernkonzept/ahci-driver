@@ -43,7 +43,7 @@ static char const *usage_str =
 
 struct Ahci_device_factory
 {
-  using Device_type = Block_device::Device;
+  using Device_type = Ahci::Device;
   using Client_type = Block_device::Virtio_client<Device_type>;
 
   static cxx::unique_ptr<Client_type>

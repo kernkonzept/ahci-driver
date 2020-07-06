@@ -11,15 +11,17 @@
 
 #include <l4/libblock-device/part_device.h>
 
+#include "ahci_device.h"
+
 namespace Ahci {
 
-class Partitioned_device : public Block_device::Partitioned_device
+class Partitioned_device : public Block_device::Partitioned_device<Ahci::Device>
 {
 public:
   Partitioned_device(cxx::Ref_ptr<Device> const &dev, unsigned partition_id,
                      Block_device::Partition_info const &pi)
-  : Block_device::Partitioned_device(dev, partition_id, pi),
-    _current_in_flight(0), _max_in_flight(_parent->max_in_flight())
+  : Block_device::Partitioned_device<Ahci::Device>(dev, partition_id, pi),
+    _current_in_flight(0), _max_in_flight(parent()->max_in_flight())
   {}
 
   unsigned max_in_flight() const override
@@ -33,7 +35,7 @@ public:
       return -L4_EBUSY;
 
     ++_current_in_flight;
-    int r = Block_device::Partitioned_device::inout_data(
+    int r = Block_device::Partitioned_device<Ahci::Device>::inout_data(
              sector, blocks,
              [this, cb](int error, l4_size_t sz)
                {
@@ -53,7 +55,7 @@ public:
       return -L4_EBUSY;
 
     ++_current_in_flight;
-    int r = Block_device::Partitioned_device::flush(
+    int r = Block_device::Partitioned_device<Ahci::Device>::flush(
              [this, cb](int error, l4_size_t sz)
                {
                  --_current_in_flight;
@@ -77,9 +79,9 @@ public:
   void set_max_in_flight(int mx)
   {
     if (mx > 0)
-      _max_in_flight = cxx::min((unsigned)mx, _parent->max_in_flight());
+      _max_in_flight = cxx::min((unsigned)mx, parent()->max_in_flight());
     else
-      _max_in_flight = cxx::max(1, (int)_parent->max_in_flight() + mx);
+      _max_in_flight = cxx::max(1, (int)parent()->max_in_flight() + mx);
   }
 
 private:
