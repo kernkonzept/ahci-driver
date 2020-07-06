@@ -15,7 +15,11 @@
 
 namespace Ahci {
 
-struct Device : Block_device::Device {};
+struct Device : Block_device::Device
+{
+  /// Return the maximum number of requests the device can handle in parallel.
+  virtual unsigned max_in_flight() const = 0;
+};
 
 class Ahci_device : public Block_device::Device_with_request_queue<Device>
 {
