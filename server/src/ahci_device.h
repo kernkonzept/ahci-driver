@@ -7,6 +7,8 @@
  */
 #pragma once
 
+#include <string>
+
 #include "ahci_port.h"
 
 #include <l4/libblock-device/device.h>
