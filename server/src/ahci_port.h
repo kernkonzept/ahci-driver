@@ -163,7 +163,7 @@ public:
    * Fill command header and table from a taskfile.
    *
    * \param task    The command description.
-   * \param cb      Object to inform  when the task is finished.
+   * \param cb      Object to inform when the task is finished.
    * \param port    Port number to use for port-multipliers.
    *
    * \pre the taskfile is assumed to be correct, no sanity check of parameters
