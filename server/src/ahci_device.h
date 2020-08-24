@@ -105,6 +105,9 @@ public:
   l4_size_t sector_size() const override
   { return _devinfo.sector_size; }
 
+  l4_size_t max_size() const override
+  { return 0x400000; }
+
   unsigned max_segments() const override
   { return Command_table::Max_entries; }
 
