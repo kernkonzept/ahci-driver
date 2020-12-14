@@ -110,7 +110,7 @@ public:
    * Check ports for devices and initialize the ones that are found.
    *
    * \param callback Function called for each port that was successfully
-   *                 initialised.
+   *                 initialized.
    */
   void scan_ports(std::function<void(Ahci_port *)> callback);
 

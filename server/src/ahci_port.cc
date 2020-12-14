@@ -205,7 +205,7 @@ Ahci_port::initialize_memory(unsigned maxslots)
   // to be available CI and SACT must be cleared
   l4_uint32_t state = _regs[Regs::Port::Ci] | _regs[Regs::Port::Sact];
 
-  // physical address, used for pointer arithmetics
+  // physical address, used for pointer arithmetic
   l4_addr_t phys_ct = _cmddata_paddr + offsetof(Command_data, tables);
   Command_data *cd = _cmd_data.get();
   for (unsigned i = 0; i < maxslots; ++i)
@@ -219,7 +219,7 @@ Ahci_port::initialize_memory(unsigned maxslots)
 
   _state = S_disabled;
 
-  Dbg::trace().printf("Initialisation finished.\n");
+  Dbg::trace().printf("Initialization finished.\n");
   dump_registers(trace);
 }
 

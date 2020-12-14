@@ -15,7 +15,7 @@
 namespace Hw {
 
 /**
- * A memio block with 32 bit registers and little endian byte order.
+ * An MMIO block with 32 bit registers and little endian byte order.
  */
 class Mmio_register_block_base_le
 {

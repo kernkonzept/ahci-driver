@@ -259,15 +259,15 @@ public:
   {
     S_undefined,    ///< no hardware association
     S_present,      ///< IO address has been assigned
-    S_present_init, ///< Initialising during device discovery
+    S_present_init, ///< Initializing during device discovery
     S_attached,     ///< Device discovery finished
     S_disabled,     ///< Port ready but device still disabled
     S_enabling,     ///< Device is being enabled
     S_disabling,    ///< Device is being disabled
     S_ready,        ///< Ready for IO commands
-    S_error,        ///< IO error occured, reset required
+    S_error,        ///< IO error occurred, reset required
     S_error_init,   ///< Reinitilizing after failure
-    S_fatal,        ///< Fatal IO error occured, not-recoverable
+    S_fatal,        ///< Fatal IO error occurred, not-recoverable
   };
 
   /// Create a new unattached port.
@@ -373,7 +373,7 @@ public:
   /**
    * Start to put port into processing mode.
    *
-   * \param callback Errand to schedule after the initialisation has finished.
+   * \param callback Errand to schedule after the initialization has finished.
    *
    * \return L4_EOK if the device was already enabled, the callback will not be
    *         called in this case. -L4_EBUSY if the enable process has been

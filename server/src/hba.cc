@@ -158,7 +158,7 @@ Hba::register_interrupt_handler(L4::Cap<L4::Icu> icu,
   _regs[Regs::Hba::Is].write(0xFFFFFFFF);
   _regs[Regs::Hba::Ghc].set(Regs::Hba::Ghc_ie);
 
-  trace.printf("Attached to interupt %d\n", irq);
+  trace.printf("Attached to interrupt %d\n", irq);
 }
 
 

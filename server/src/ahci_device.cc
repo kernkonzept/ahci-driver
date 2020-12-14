@@ -219,7 +219,7 @@ Ahci::Ahci_device::Device_info::set_device_info(l4_uint16_t const *info)
   id2str(info, firmware_rev, IID_firmwarerev_ofs, IID_firmwarerev_len);
   id2str(info, model_number, IID_modelnum_ofs, IID_modelnum_len);
   ata_major_rev = info[IID_ata_major_rev];
-  // normalise unreported version to 0
+  // normalize unreported version to 0
   if (ata_major_rev == 0xFFFF)
     ata_major_rev = 0;
   ata_minor_rev = info[IID_ata_minor_rev];
