@@ -51,7 +51,7 @@ static void run()
   l4_uint64_t dsksz = c.device_config().capacity;
   unsigned secperpage = L4_PAGESIZE / 512;
 
-  info.printf("Disk size: %llu sectors (page size: %lu)\n", dsksz, L4_PAGESIZE);
+  info.printf("Disk size: %llu sectors (page size: %lu).\n", dsksz, L4_PAGESIZE);
 
   L4virtio::Driver::Block_device::Handle h;
   Md5_hash md5sum;

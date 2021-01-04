@@ -88,8 +88,7 @@ void finish_reading_sector(unsigned char status)
 
   sectors_done++;
 
-  trace.printf("Done sector %llu of %llu\n", sectors_done, disk_size);
-
+  trace.printf("Done sector %llu of %llu.\n", sectors_done, disk_size);
 }
 
 
@@ -98,13 +97,13 @@ static void run()
   auto cap = L4Re::chkcap(L4Re::Env::env()->get_cap<L4virtio::Device>("dsk"),
                           "expecting disk driver at capability 'dsk'.", 0);
 
-  info.printf("Mmap example started. Listening to cap dsk.");
+  info.printf("Mmap example started. Listening to cap 'dsk'.\n");
   // Set up the client side of the driver.
   // No additional user space is requested because we want to
   // use a special dataspace for the disk below.
   L4virtio::Ptr<void> devaddr;
   c.setup_device(cap, 0, 0, devaddr);
-  info.printf("Disk size: %llu sectors\n", c.device_config().capacity);
+  info.printf("Disk size: %llu sectors.\n", c.device_config().capacity);
 
   disk_size = c.device_config().capacity;
 
@@ -135,7 +134,7 @@ static void run()
         }
 
       auto &out = (sector % 100 == 0) ? info : trace;
-      out.printf("Done reading sector %llu\n", sector);
+      out.printf("Done reading sector %llu.\n", sector);
     }
 
   trace.printf("All sectors sent.\n");
