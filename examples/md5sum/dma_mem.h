@@ -32,13 +32,14 @@ public:
     auto *e = L4Re::Env::env();
     L4Re::chksys(e->mem_alloc()->alloc(sz, lcap.get(),
                                        L4Re::Mem_alloc::Continuous
-                                       | L4Re::Mem_alloc::Pinned),
+                                       | L4Re::Mem_alloc::Pinned
+                                       | L4Re::Mem_alloc::Super_pages),
                  "Cannot allocate pinned memory.");
 
     L4Re::chksys(e->rm()->attach(&_region, sz,
                                  L4Re::Rm::F::Search_addr | L4Re::Rm::F::RW,
                                  L4::Ipc::make_cap_rw(lcap.get()), 0,
-                                 L4_PAGESHIFT),
+                                 L4_SUPERPAGESHIFT),
                  "Out of virtual memory.");
 
     _cap = cxx::move(lcap);
