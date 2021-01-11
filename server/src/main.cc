@@ -260,6 +260,7 @@ parse_args(int argc, char *const *argv)
     { "ds-max",        required_argument, NULL,  OPT_DS_MAX },
     { "slot-max",      required_argument, NULL,  OPT_SLOT_MAX },
     { "readonly",      no_argument,       NULL,  OPT_READONLY },
+    { 0, 0, 0, 0 },
   };
 
   Client_opts opts;
