@@ -7,6 +7,7 @@
  */
 #pragma once
 
+#include <l4/drivers/hw_mmio_register_block>
 #include <l4/re/env>
 #include <l4/re/error_helper>
 #include <l4/re/util/shared_cap>
@@ -21,7 +22,6 @@
 
 #include "ahci_port.h"
 #include "ahci_types.h"
-#include "hw_mmio_register_block.h"
 
 namespace Ahci {
 
@@ -157,7 +157,7 @@ private:
 
   L4vbus::Pci_dev _dev;
   Iomem _iomem;
-  Hw::Register_block<32> _regs;
+  L4drivers::Register_block<32> _regs;
   unsigned char _irq_trigger_type;
   std::array<Ahci_port, 32> _ports;
 };

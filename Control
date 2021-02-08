@@ -1,2 +1,2 @@
-requires: libblock-device libio-vbus stdlibs-all
+requires: libblock-device libio-vbus stdlibs-all drivers-frst
 maintainer: sarah.hoffmann@kernkonzept.com

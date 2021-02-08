@@ -9,6 +9,7 @@
 
 #include <l4/cxx/bitfield>
 #include <l4/cxx/utils>
+#include <l4/drivers/hw_mmio_register_block>
 #include <l4/util/atomic.h>
 #include <l4/re/dma_space>
 #include <l4/re/rm>
@@ -18,7 +19,6 @@
 #include <cassert>
 #include <vector>
 
-#include "hw_mmio_register_block.h"
 #include "ahci_types.h"
 #include "debug.h"
 
@@ -243,7 +243,7 @@ class Ahci_port
   };
 
 public:
-  typedef Hw::Register_block<32> Port_regs;
+  typedef L4drivers::Register_block<32> Port_regs;
 
   enum Device_type
   {

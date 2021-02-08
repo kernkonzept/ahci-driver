@@ -15,9 +15,14 @@
 #include <l4/vbus/vbus_pci>
 #include <l4/vbus/vbus_interfaces.h>
 #include <cstring>
+#include <endian.h>
 
 #include "hba.h"
 #include "debug.h"
+
+#if (__BYTE_ORDER == __BIG_ENDIAN)
+# error "Big endian byte order not implemented."
+#endif
 
 static Dbg trace(Dbg::Trace, "hba");
 
@@ -30,7 +35,7 @@ Hba::Hba(L4vbus::Pci_dev const &dev,
 : _dev(dev),
   _iomem(cfg_read(0x24) & 0xFFFFF000,
          L4::cap_reinterpret_cast<L4Re::Dataspace>(_dev.bus_cap())),
-  _regs(new Hw::Mmio_register_block_le<32>(_iomem.vaddr.get()))
+  _regs(new L4drivers::Mmio_register_block<32>(_iomem.vaddr.get()))
 {
   trace.printf("Device registers  0%x @ 0%lx, caps: 0x%x  caps2: 0x%x\n",
                cfg_read(0x24) & 0xFFFFF000, _iomem.vaddr.get(),

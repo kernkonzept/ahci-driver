@@ -12,9 +12,14 @@
 #include <l4/vbus/vbus>
 #include <l4/vbus/vbus_pci.h>
 #include <cstring>
+#include <endian.h>
 
 #include "ahci_port.h"
 #include "debug.h"
+
+#if (__BYTE_ORDER == __BIG_ENDIAN)
+# error "Big endian byte order not implemented."
+#endif
 
 static Dbg trace(Dbg::Trace, "ahci-port");
 
@@ -108,7 +113,7 @@ Ahci_port::attach(l4_addr_t base_addr, unsigned buswidth,
 
   trace.printf("Attaching port to address 0x%lx\n", base_addr);
 
-  _regs = new Hw::Mmio_register_block_le<32>(base_addr);
+  _regs = new L4drivers::Mmio_register_block<32>(base_addr);
   _buswidth = buswidth;
 
   _state = S_present;
