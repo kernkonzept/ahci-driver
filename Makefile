@@ -1,6 +1,6 @@
 PKGDIR	= .
 L4DIR	?= $(PKGDIR)/../..
 
-TARGET = server examples test
+TARGET = server test
 
 include $(L4DIR)/mk/subdir.mk
