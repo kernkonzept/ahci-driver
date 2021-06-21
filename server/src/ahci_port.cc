@@ -273,28 +273,17 @@ Ahci_port::dma_enable(Errand::Callback const &callback)
 {
   _regs[Regs::Port::Cmd].set(Regs::Port::Cmd_st);
 
-  Errand::poll(10, 50000,
-               std::bind(&Ahci_port::is_enabled, this),
-               [=](bool ret)
-                 {
-                   if (_state != S_enabling)
-                     {
-                       Dbg::warn().printf("Unexpected state in Ahci_port::enable\n");
-                       callback();
-                     }
-                   else if (ret)
-                     {
-                       enable_ints();
-                       _state = S_ready;
-                        callback();
-                     }
-                   else
-                     {
-                       // disable again
-                       _state = S_error;
-                       disable(callback);
-                     }
-                 });
+  if (_state == S_enabling)
+    {
+      enable_ints();
+      _state = S_ready;
+    }
+  else
+    {
+      Dbg::warn().printf("Unexpected state in Ahci_port::enable\n");
+    }
+
+  callback();
 }
 
 

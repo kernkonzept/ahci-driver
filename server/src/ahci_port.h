@@ -394,12 +394,6 @@ public:
   { return _slots.size(); }
 
 private:
-  /** Check if the port is ready to receive IO tasks.  */
-  bool is_enabled() const
-  {
-    return _regs[Regs::Port::Cmd] & Regs::Port::Cmd_cr;
-  }
-
   /** Check if the HBA is processing IO tasks. */
   bool is_started() const
   {
@@ -469,7 +463,7 @@ private:
    */
   void enable_ints()
   {
-    if (_devtype != Ahcidev_none && is_enabled())
+    if (_devtype != Ahcidev_none)
       _regs[Regs::Port::Ie] = Regs::Port::Is_mask_nonfatal;
   }
 
