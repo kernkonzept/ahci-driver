@@ -15,9 +15,6 @@ EXTRA_TEST    := virtio-block-chksum-sync virtio-block-chksum-async
 IMAGE_FILE    = $(OBJ_DIR)/test_ahci_$${TEST_TARGET}.img
 TEST_SETUP    = $(SRC_DIR)/create-test-disk.sh $(IMAGE_FILE)
 
-TEST_TARGET_ahci_md5_sync  := ahci-md5-sync
-TEST_TARGET_ahci_md5_async := ahci-md5-async
-
 TEST_EXPECTED := md5sum.output
 
 TEST_TAGS     = !hardware
