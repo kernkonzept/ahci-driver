@@ -99,16 +99,20 @@ void Hba::scan_ports(std::function<void(Ahci_port *)> callback)
                        {
                          if (port->is_ready())
                            callback(port);
+                         else
+                           callback(nullptr);
                        });
                   }
                 catch (L4::Runtime_error const &e)
                   {
                     Err().printf("Could not enable port: %s\n", e.str());
+                    callback(nullptr);
                   }
               });
         }
+      else
+        callback(nullptr);
     }
-
 }
 
 

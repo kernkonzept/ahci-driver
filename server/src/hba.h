@@ -114,6 +114,8 @@ public:
    */
   void scan_ports(std::function<void(Ahci_port *)> callback);
 
+  int num_ports() { return _ports.size(); }
+
   /**
    * Test if a VBUS device is a AHCI HBA.
    *

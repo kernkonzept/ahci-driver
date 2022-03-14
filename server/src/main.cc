@@ -358,12 +358,12 @@ device_discovery(L4::Cap<L4vbus::Vbus> bus, L4::Cap<L4::Icu> icu,
               continue;
             }
 
-          ++devices_in_scan;
+          devices_in_scan += _hbas.back()->num_ports();
 
           _hbas.back()->scan_ports(
             [=](Ahci::Ahci_port *port)
               {
-                if (Ahci::Ahci_device::is_compatible_device(port))
+                if (port && Ahci::Ahci_device::is_compatible_device(port))
                   drv.add_disk(cxx::make_ref_obj<Ahci::Ahci_device>(port),
                                device_scan_finished);
                 else
