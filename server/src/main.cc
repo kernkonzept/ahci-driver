@@ -10,6 +10,7 @@
 #include <cstring>
 #include <unistd.h>
 #include <getopt.h>
+#include <map>
 #include <vector>
 
 #include <l4/re/env>
@@ -326,9 +327,30 @@ device_scan_finished()
     Dbg::trace().printf("Device now accepts new clients.\n");
 }
 
+static L4Re::Util::Shared_cap<L4Re::Dma_space>
+create_dma_space(L4::Cap<L4vbus::Vbus> bus, long unsigned id)
+{
+  static std::map<long unsigned, L4Re::Util::Shared_cap<L4Re::Dma_space>> spaces;
+
+  auto ires = spaces.find(id);
+  if (ires != spaces.end())
+    return ires->second;
+
+  auto dma = L4Re::chkcap(L4Re::Util::make_shared_cap<L4Re::Dma_space>(),
+                          "Allocate capability for DMA space.");
+  L4Re::chksys(L4Re::Env::env()->user_factory()->create(dma.get()),
+               "Create DMA space.");
+  L4Re::chksys(
+    bus->assign_dma_domain(id, L4VBUS_DMAD_BIND | L4VBUS_DMAD_L4RE_DMA_SPACE,
+                           dma.get()),
+    "Assignment of DMA domain.");
+
+  spaces[id] = dma;
+  return dma;
+}
+
 static void
-device_discovery(L4::Cap<L4vbus::Vbus> bus, L4::Cap<L4::Icu> icu,
-                 L4Re::Util::Shared_cap<L4Re::Dma_space> const &dma)
+device_discovery(L4::Cap<L4vbus::Vbus> bus, L4::Cap<L4::Icu> icu)
 {
   Dbg::info().printf("Starting device discovery.\n");
 
@@ -343,14 +365,32 @@ device_discovery(L4::Cap<L4vbus::Vbus> bus, L4::Cap<L4::Icu> icu,
   while (root.next_device(&child, L4VBUS_MAX_DEPTH, &di) == L4_EOK)
     {
       Dbg::trace().printf("Scanning child 0x%lx.\n", child.dev_handle());
+
       if (Ahci::Hba::is_ahci_hba(child, di))
         {
+          unsigned long id = -1UL;
+          for (auto i = 0u; i < di.num_resources; ++i)
+            {
+              l4vbus_resource_t res;
+              L4Re::chksys(child.get_resource(i, &res), "Getting resource.");
+              if (res.type == L4VBUS_RESOURCE_DMA_DOMAIN)
+                {
+                  id = res.start;
+                  Dbg::trace().printf("Using device's DMA domain %lu.\n",
+                                      res.start);
+                  break;
+                }
+            }
+
+          if (id == -1UL)
+            Dbg::trace().printf("Using VBUS global DMA domain.\n");
+
           try
             {
-              auto hba = cxx::make_unique<Ahci::Hba>(child, dma);
+              auto hba = cxx::make_unique<Ahci::Hba>(child,
+                                                     create_dma_space(bus, id));
               hba->register_interrupt_handler(icu, server.registry());
               _hbas.push_back(cxx::move(hba));
-
             }
           catch (L4::Runtime_error const &e)
             {
@@ -391,20 +431,7 @@ setup_hardware()
                           "Allocate ICU capability.");
   L4Re::chksys(icudev.vicu(icu), "Request ICU capability.");
 
-  Dbg::trace().printf("Creating DMA domain for VBUS.\n");
-
-  auto dma = L4Re::chkcap(L4Re::Util::make_shared_cap<L4Re::Dma_space>(),
-                          "Allocate capability for DMA space.");
-  L4Re::chksys(L4Re::Env::env()->user_factory()->create(dma.get()),
-               "Create DMA space.");
-
-  L4Re::chksys(
-      l4vbus_assign_dma_domain(vbus.cap(), -1U,
-                               L4VBUS_DMAD_BIND | L4VBUS_DMAD_L4RE_DMA_SPACE,
-                               dma.get().cap()),
-      "Assignment of DMA domain.");
-
-  device_discovery(vbus, icu, dma);
+  device_discovery(vbus, icu);
 }
 
 static int
