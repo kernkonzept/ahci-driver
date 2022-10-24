@@ -37,7 +37,7 @@ Hba::Hba(L4vbus::Pci_dev const &dev,
          L4::cap_reinterpret_cast<L4Re::Dataspace>(_dev.bus_cap())),
   _regs(new L4drivers::Mmio_register_block<32>(_iomem.vaddr.get()))
 {
-  trace.printf("Device registers  0%x @ 0%lx, caps: 0x%x  caps2: 0x%x\n",
+  trace.printf("Device registers  0x%x @ 0%lx, caps: 0x%x  caps2: 0x%x\n",
                cfg_read(0x24) & 0xFFFFF000, _iomem.vaddr.get(),
                _regs[Regs::Hba::Cap].read(), _regs[Regs::Hba::Cap2].read());
 
