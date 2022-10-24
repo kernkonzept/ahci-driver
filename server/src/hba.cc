@@ -68,9 +68,11 @@ Hba::Hba(L4vbus::Pci_dev const &dev,
     {
       if (ports & (1 << portno))
         {
-          p.attach(_iomem.port_base_address(portno), buswidth, dma);
-          trace.printf("Registration of port %d done @0x%lx\n",
-                       portno, _iomem.port_base_address(portno));
+          int ret = p.attach(_iomem.port_base_address(portno), buswidth, dma);
+          trace.printf("Registration of port %d %s(%i) @0x%lx\n",
+                       portno,
+                       ret < 0 ? "failed" : "done", ret,
+                       _iomem.port_base_address(portno));
         }
       else
         trace.printf("Port %d is disabled @0x%lx\n",
