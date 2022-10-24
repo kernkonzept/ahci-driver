@@ -118,8 +118,10 @@ Ahci_port::attach(l4_addr_t base_addr, unsigned buswidth,
 
   _state = S_present;
 
-  if (device_state() != 3)
+  if (!device_present())
     {
+      trace.printf("Device not present @0x%lx. Device state 0x%x\n", base_addr,
+                   device_state());
       _devtype = Ahcidev_none;
       return -L4_ENODEV;
     }
