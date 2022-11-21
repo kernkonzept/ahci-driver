@@ -8,7 +8,7 @@ SPDXVersion: SPDX-2.1
 DataLicense: CC0-1.0
 SPDXID: SPDXRef-Document
 DocumentNamespace: spdx:kernkonzept/ahci-driver-a9d9c31b-0a82-488c-9ba2-789f0ba0b351
-DocumentName: LICENSE.spdx
+DocumentName: ahci-driver
 
 Creator: Organization: Kernkonzept GmbH (info@kernkonzept.com)
 
