@@ -610,7 +610,7 @@ Ahci_port::handle_error()
     [=]()
       {
         // clear error register and error interrupts
-        _regs[Regs::Port::Serr] = 0;
+        _regs[Regs::Port::Serr] = 0xFFFFFFFF;
         _regs[Regs::Port::Is] = Regs::Port::Is_mask_fatal
                                 | Regs::Port::Is_mask_error;
         enable(
