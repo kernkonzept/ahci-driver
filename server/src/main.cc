@@ -30,7 +30,7 @@
 #include <l4/libblock-device/block_device_mgr.h>
 #include <l4/libblock-device/virtio_client.h>
 
-static char const *usage_str =
+static char const *const usage_str =
 "Usage: %s [-vqA] [--client CAP --device UUID [--ds-max NUM] [--readonly]]\n\n"
 "Options:\n"
 " -v   Verbose mode.\n"
