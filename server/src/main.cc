@@ -112,7 +112,11 @@ public:
           }
 
         if (parse_string_param(p, "device=", &device))
-          continue;
+          {
+            std::transform(device.begin(), device.end(), device.begin(),
+                           [](unsigned char c){ return std::toupper(c); });
+            continue;
+          }
         if (parse_int_param(p, "ds-max=", &num_ds))
           {
             if (num_ds <= 0 || num_ds > 256) // sanity check with arbitrary limit
