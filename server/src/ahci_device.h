@@ -21,7 +21,7 @@ struct Device : Block_device::Device
   virtual unsigned max_in_flight() const = 0;
 };
 
-class Ahci_device : public Device
+class Ahci_device : public Block_device::Device_with_notification_domain<Device>
 {
   /**
    * Layout of device info page returned by the identify device command.
