@@ -21,6 +21,8 @@
 #include <l4/vbus/vbus>
 #include <l4/vbus/vbus_pci>
 
+#include <terminate_handler-l4>
+
 #include "ahci_partition.h"
 #include "ahci_port.h"
 #include "ahci_device.h"
@@ -460,8 +462,8 @@ setup_hardware()
   device_discovery(vbus, icu);
 }
 
-static int
-run(int argc, char *const *argv)
+int
+main(int argc, char *const *argv)
 {
   Dbg::set_level(3);
 
@@ -478,28 +480,4 @@ run(int argc, char *const *argv)
   server.loop();
 
   return 0;
-}
-
-
-int
-main(int argc, char *const *argv)
-{
-  try
-    {
-      return run(argc, argv);
-    }
-  catch (L4::Runtime_error const &e)
-    {
-      Err().printf("%s: %s\n", e.str(), e.extra_str());
-    }
-  catch (L4::Base_exception const &e)
-    {
-      Err().printf("Error: %s\n", e.str());
-    }
-  catch (std::exception const &e)
-    {
-      Err().printf("Error: %s\n", e.what());
-    }
-
-  return -1;
 }
