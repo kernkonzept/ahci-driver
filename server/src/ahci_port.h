@@ -74,7 +74,7 @@ struct Command_table
   enum
   {
     /** Maximum number of blocks in the command table */
-    Max_entries = 8,
+    Max_entries = 24,
   };
 
   /** Command FIS structure */
@@ -93,7 +93,7 @@ struct Command_table
   } prd[Max_entries];
 };
 
-static_assert(0x100 == sizeof(struct Command_table),
+static_assert(0x200 == sizeof(struct Command_table),
               "Command table wrongly packed.");
 
 
