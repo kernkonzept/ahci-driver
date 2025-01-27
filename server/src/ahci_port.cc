@@ -644,7 +644,7 @@ Ahci_port::dma_map(L4::Cap<L4Re::Dataspace> ds, l4_addr_t offset,
   if (ret < 0 || out_size < size)
     {
       *phys = 0;
-      Dbg::info().printf("Cannot resolve physical address (ret = %ld, %zu < %zu).\n",
+      Dbg::info().printf("Cannot resolve physical address (ret = %d, %zu < %zu).\n",
                          ret, out_size, size);
       return -L4_ENOMEM;
     }
