@@ -13,8 +13,10 @@
 #include <l4/re/util/object_registry>
 #include <l4/vbus/vbus>
 #include <l4/vbus/vbus_pci>
+#include <l4/cxx/minmax>
 
 #include <array>
+#include <tuple>
 #include <vector>
 #include <stdio.h>
 #include <cassert>
@@ -38,20 +40,29 @@ private:
   struct Iomem
   {
     L4Re::Rm::Unique_region<l4_addr_t> vaddr;
+    l4_size_t size;
 
-    Iomem(l4_addr_t phys_addr, L4::Cap<L4Re::Dataspace> iocap)
+    Iomem(L4::Cap<L4Re::Dataspace> iocap, std::tuple<l4_addr_t, l4_size_t> abar)
     {
-      L4Re::chksys(L4Re::Env::env()->rm()->attach(&vaddr, L4_PAGESIZE,
+      size = std::get<1>(abar);
+      L4Re::chksys(L4Re::Env::env()->rm()->attach(&vaddr, size,
                                                   L4Re::Rm::F::Search_addr
                                                   | L4Re::Rm::F::Cache_uncached
                                                   | L4Re::Rm::F::RW,
                                                   L4::Ipc::make_cap_rw(iocap),
-                                                  phys_addr, L4_PAGESHIFT));
+                                                  std::get<0>(abar),
+                                                  L4_PAGESHIFT));
     }
 
     l4_addr_t port_base_address(unsigned num) const
     {
       return vaddr.get() + Port_base + Port_size * num;
+    }
+
+    unsigned max_ports() const
+    {
+      unsigned ports = (size - Port_base) / Port_size;
+      return cxx::min(ports, 32U);
     }
 
     enum Mem_config
@@ -66,6 +77,7 @@ public:
    * Create a new AHCI HBA from a vbus PCI device.
    */
   Hba(L4vbus::Pci_dev const &dev,
+      l4vbus_device_t const &di,
       L4Re::Util::Shared_cap<L4Re::Dma_space> const &dma);
 
   Hba(Hba const &) = delete;
@@ -156,11 +168,14 @@ private:
     L4Re::chksys(_dev.cfg_write(reg, val, 16));
   }
 
+  std::tuple<l4_addr_t, l4_size_t>
+  get_abar_size(L4vbus::Pci_dev const &dev, l4vbus_device_t const &di);
+
   L4vbus::Pci_dev _dev;
   Iomem _iomem;
   L4drivers::Register_block<32> _regs;
   unsigned char _irq_trigger_type;
-  std::array<Ahci_port, 32> _ports;
+  std::vector<Ahci_port> _ports;
 };
 
 }

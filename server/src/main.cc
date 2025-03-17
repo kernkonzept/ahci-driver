@@ -420,7 +420,7 @@ device_discovery(L4::Cap<L4vbus::Vbus> bus, L4::Cap<L4::Icu> icu)
 
           try
             {
-              auto hba = cxx::make_unique<Ahci::Hba>(child,
+              auto hba = cxx::make_unique<Ahci::Hba>(child, di,
                                                      create_dma_space(bus, id));
               hba->register_interrupt_handler(icu, server.registry());
               _hbas.push_back(cxx::move(hba));

@@ -24,16 +24,51 @@
 #endif
 
 static Dbg trace(Dbg::Trace, "hba");
+static Dbg warn(Dbg::Trace, "hba");
 
 namespace Ahci {
 
 bool Hba::check_address_width = true;
 
+std::tuple<l4_addr_t, l4_size_t>
+Hba::get_abar_size(L4vbus::Pci_dev const &dev, l4vbus_device_t const &di)
+{
+  l4_addr_t abar = cfg_read(0x24) & 0xFFFFF000;
+  l4_size_t abar_size = 0U;
+  l4vbus_resource_t res;
+
+  for (auto i = 0u; i < di.num_resources; ++i)
+    {
+      if (long err = dev.get_resource(i, &res))
+        {
+          warn.printf("Failed to get resource from vBus: %s (%li)",
+                      l4sys_errtostr(err), err);
+          continue;
+        }
+
+      if (res.type == L4VBUS_RESOURCE_MEM)
+        {
+          if (res.start == abar)
+            {
+              abar_size = res.end - res.start + 1;
+              break;
+            }
+        }
+    }
+
+  if (abar_size == 0U)
+    L4Re::throw_error(-L4_EINVAL,
+                      "ABAR memory not found in vBus device resources.");
+
+  return std::make_tuple(abar, abar_size);
+}
+
 Hba::Hba(L4vbus::Pci_dev const &dev,
+         l4vbus_device_t const &di,
          L4Re::Util::Shared_cap<L4Re::Dma_space> const &dma)
 : _dev(dev),
-  _iomem(cfg_read(0x24) & 0xFFFFF000,
-         L4::cap_reinterpret_cast<L4Re::Dataspace>(_dev.bus_cap())),
+  _iomem(L4::cap_reinterpret_cast<L4Re::Dataspace>(_dev.bus_cap()),
+         get_abar_size(dev, di)),
   _regs(new L4drivers::Mmio_register_block<32>(_iomem.vaddr.get()))
 {
   trace.printf("Device registers  0x%x @ 0%lx, caps: 0x%x  caps2: 0x%x\n",
@@ -60,6 +95,11 @@ Hba::Hba(L4vbus::Pci_dev const &dev,
 
   l4_uint32_t ports = _regs[Regs::Hba::Pi];
   trace.printf("Port information: 0x%x\n", ports);
+
+  _ports.resize(_iomem.max_ports()); // initialize to available number
+  if (feats.np() + 1u > _iomem.max_ports())
+    warn.printf("Number of supported ports exceeds available memory: %u > %u\n",
+                feats.np() + 1u, _iomem.max_ports());
 
   int portno = 0;
   unsigned buswidth = feats.s64a() ? 64 : 32;
