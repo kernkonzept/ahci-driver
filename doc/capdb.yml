@@ -191,6 +191,11 @@ factory:
           processed in parallel by the AHCI device. See `--slot-max`
           option above for details.
         type: int
+      - name: 'read-only'
+        desc: |
+          This string sets the access to disks or partitions to read only for the
+          client.
+        type: flag
 
 examples: |
   A couple of examples on how to request different disks or partitions

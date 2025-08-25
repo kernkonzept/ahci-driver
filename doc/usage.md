@@ -166,13 +166,6 @@ The ahci driver needs access to a virtual bus capability (`vbus`). On the
 virtual bus the AHCI driver searches for AHCI 1.0 compliant storage controllers.
 Please see io's documentation about how to setup a virtual bus.
 
-  * `--readonly`
-
-    This option sets the access to disks or partitions to read only for the
-    preceding `client` option.
-
-    Flag. True if provided.
-
 ## Virtio block host
 
 Prior to connecting a client to a virtual block session it has to be created
@@ -180,7 +173,7 @@ using the following Lua function. It has to be called on the client side of the
 IPC gate capability whose server side is bound to the ahci driver.
 
 Call:   `create(0, "device=<<SN> | <SN>:<PARTNUM> | [partuuid:]<UUID> |
-[partlabel:]<LABEL>>" [, "ds-max=<max>", "slot-max=<max>"])`
+[partlabel:]<LABEL>>" [, "ds-max=<max>", "slot-max=<max>", "read-only"])`
 
 * `"device=<<SN> | <SN>:<PARTNUM> | [partuuid:]<UUID> | [partlabel:]<LABEL>>"`
 
@@ -213,6 +206,13 @@ Call:   `create(0, "device=<<SN> | <SN>:<PARTNUM> | [partuuid:]<UUID> |
   the AHCI device. See `--slot-max` option above for details.
 
   Numerical value.
+
+* `"read-only"`
+
+  This string sets the access to disks or partitions to read only for the
+  client.
+
+  Flag. True if provided.
 
 If the `create()` call is successful a new capability which references an AHCI
 virtio driver is returned. A client uses this capability to communicate with the
