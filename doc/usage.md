@@ -166,6 +166,13 @@ The ahci driver needs access to a virtual bus capability (`vbus`). On the
 virtual bus the AHCI driver searches for AHCI 1.0 compliant storage controllers.
 Please see io's documentation about how to setup a virtual bus.
 
+  * `--readonly`
+
+    This option sets the access to disks or partitions to read only for the
+    preceding `client` option.
+
+    Flag. True if provided.
+
 ## Virtio block host
 
 Prior to connecting a client to a virtual block session it has to be created
