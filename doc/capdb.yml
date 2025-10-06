@@ -50,7 +50,6 @@ cmds:
         desc: Connect a static client.
         type: cap
         cap-name: 'client'
-        protocol: 'ipc'
         multiple: true
         needs-server-right: true
       - name: 'device'
@@ -124,7 +123,6 @@ caps:
     protocol: 'ipc'
     needs-server-right: true
     multiple: true
-    provided-by-cmd: 'client'
 
 server-cap-name: svr
 factory:
