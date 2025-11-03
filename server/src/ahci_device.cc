@@ -86,7 +86,7 @@ Ahci::Ahci_device::start_device_scan(Errand::Callback const &callback)
                     _devinfo.set_device_info(infopage->get<l4_uint16_t>(0));
 
                     Dbg info(Dbg::Info);
-                    info.printf("Serial number: <%s>\n", _devinfo.serial_number);
+                    printf("Serial number: <%s>\n", _devinfo.serial_number);
                     info.printf("Model number: <%s>\n", _devinfo.model_number);
                     info.printf("LBA: %s  DMA: %s\n",
                                 _devinfo.features.lba ? "yes": "no",
