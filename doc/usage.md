@@ -82,10 +82,18 @@ line options:
 
   This parameter opens a scope for the following subparameters:
 
-  * `--device <UUID | SN>`
+  * `--device <<SN> | <SN>:<PARTNUM> | [partuuid:]<UUID> | [partlabel:]<LABEL>>`
 
-    This option denotes the partition UUID or serial number of the preceding
-    `client` option.
+    This option denotes either the AHCI device, or a partition on such a device
+    to be exported for the client specified in the preceding `client` option.
+
+    The AHCI device is specified via its serial number SN. The device serial
+    number can be found e.g. in the AHCI server's output.
+
+    The partition can be given either by the combination of the device's SN
+    followed by a colon followed by the partition number PARTNUM, or by the
+    partition's UUID or label. Both 'partuuid:' and 'partlabel:' strings are
+    optional and help to disambiguate the device matching if necessary.
 
     String value.
 
@@ -152,12 +160,21 @@ Prior to connecting a client to a virtual block session it has to be created
 using the following Lua function. It has to be called on the client side of the
 IPC gate capability whose server side is bound to the ahci driver.
 
-Call:   `create(0, "device=<UUID | SN>" [, "ds-max=<max>", "slot-max=<max>"])`
+Call:   `create(0, "device=<<SN> | <SN>:<PARTNUM> | [partuuid:]<UUID> |
+[partlabel:]<LABEL>>" [, "ds-max=<max>", "slot-max=<max>"])`
 
-* `"device=<UUID | SN>"`
+* `"device=<<SN> | <SN>:<PARTNUM> | [partuuid:]<UUID> | [partlabel:]<LABEL>>"`
 
-  This string denotes either a partition UUID or a disk serial number the client
-  wants to be exported via the Virtio block interface.
+  This string denotes either the AHCI device, or a partition on such a device
+  that the client wants to be exported via the Virtio block interface.
+
+  The AHCI device is specified via its serial number SN. The device serial
+  number can be found e.g. in the AHCI server's output.
+
+  The partition can be given either by the combination of the device's SN
+  followed by a colon followed by the partition number PARTNUM, or by the
+  partition's UUID or label. Both 'partuuid:' and 'partlabel:' strings are
+  optional and help to disambiguate the device matching if necessary.
 
   String value.
 
@@ -189,17 +206,48 @@ AHCI driver using the Virtio block protocol.
 A couple of examples on how to request different disks or partitions are listed
 below.
 
+* Request entire disk with the given serial number
+
+Assume the AHCI server reported the following SN number (running in QEMU):
+
+```
+Serial number: <QM00005             >
+```
+
+A client can connect to this disk via:
+
+```lua
+vda = ahci_bus:create(0, "ds-max=5", "device=QM00005")
+```
+
+* Request a partition using a partition number
+
+Assume the AHCI server reported the following SN number (running in QEMU):
+
+```
+Serial number: <QM00005             >
+```
+
+A client can connect to partition 2 on this device like this:
+
+```lua
+vda = ahci_bus:create(0, "ds-max=5", "device=QM00005:2"
+```
+
 * Request a partition with the given UUID
 
-  ```lua
-  vda1 = ahci_bus:create(0, "ds-max=5", "device=88E59675-4DC8-469A-98E4-B7B021DC7FBE")
-  ```
+```lua
+vda = ahci_bus:create(0, "ds-max=5", "device=88E59675-4DC8-469A-98E4-B7B021DC7FBE")
+```
 
-* Request complete disk with the given serial number
+* Request a partition using a label
 
-  ```lua
-  vda = ahci_bus:create(0, "ds-max=4", "device=QM00005")
-  ```
+Assume there is a partition with label 'foobar'. A client can connect to it
+using the following snippet:
+
+```lua
+vda = ahci_bus:create(0, "ds-max=5", "device=partlabel:foobar")
+```
 
 * A more elaborate example with a static client. The client uses the client side
 of the `ahci_cl1` capability to communicate with the AHCI driver.
