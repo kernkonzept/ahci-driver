@@ -248,7 +248,7 @@ Ahci_port::enable(Errand::Callback const &callback)
       _regs[Regs::Port::Cmd].set(Regs::Port::Cmd_clo);
       Errand::poll(10, 50000,
                    std::bind(&Ahci_port::no_command_list_override, this),
-                   [=](bool ret)
+                   [this, callback](bool ret)
                      {
                        if (_state != S_enabling)
                          {
@@ -320,7 +320,7 @@ Ahci_port::disable(Errand::Callback const &callback)
 
   Errand::poll(10, 50000,
                std::bind(&Ahci_port::is_command_list_disabled, this),
-               [=](bool ret)
+               [this, callback](bool ret)
                  {
                    if (_state != S_disabling)
                      Dbg::warn().printf("Unexpected state in Ahci_port::disable");
@@ -341,7 +341,7 @@ Ahci_port::abort(Errand::Callback const &callback)
 {
   // disable the port and then cancel any outstanding requests
   disable(
-    [=]()
+    [this, callback]()
       {
         trace.printf("START ERRAND Abort_slots_errand\n");
         for (auto &s : _slots)
@@ -400,7 +400,7 @@ Ahci_port::initialize(Errand::Callback const &callback)
 
   Errand::poll(10, 50000,
                std::bind(&Ahci_port::is_command_list_disabled, this),
-               [=](bool ret)
+               [this, callback](bool ret)
                  {
                    if (!(_state == S_present_init || _state == S_error_init))
                      {
@@ -436,7 +436,7 @@ Ahci_port::disable_fis_receive(Errand::Callback const &callback)
 
   Errand::poll(10, 50000,
                std::bind(&Ahci_port::is_fis_receive_disabled, this),
-               [=](bool ret)
+               [this, callback](bool ret)
                  {
                    if (!(_state == S_present_init || _state == S_error_init))
                      {
@@ -466,13 +466,13 @@ Ahci_port::reset(Errand::Callback const &callback)
   _regs[Regs::Port::Sctl] = 1;
 
   // wait for 5ms, according to spec
-  Errand::schedule([=]()
+  Errand::schedule([this, callback]()
     {
       _regs[Regs::Port::Sctl] = 0;
 
       Errand::poll(10, 50000,
                    std::bind(&Ahci_port::device_present, this),
-                   [=](bool ret)
+                   [this, callback](bool ret)
                      {
                        if (ret)
                          wait_tfd(callback);
@@ -488,7 +488,7 @@ Ahci_port::wait_tfd(Errand::Callback const &callback)
 {
   Errand::poll(10, 50000,
                std::bind(&Ahci_port::is_port_idle, this),
-               [=](bool ret)
+               [this, callback](bool ret)
                  {
                    if (ret)
                      {
@@ -560,7 +560,7 @@ Ahci_port::process_interrupts()
       // state changed: clear interrupts
       _regs[Regs::Port::Is] = istate & Regs::Port::Is_mask_status;
       // TODO Restart the device detection cycle here.
-      abort([=]{ reset([]{}); });
+      abort([this]{ reset([]{}); });
       // XXX this should be propagated to the driver running the device
       return -L4_EIO;
     }
@@ -607,14 +607,14 @@ Ahci_port::handle_error()
   _state = S_error;
 
   initialize(
-    [=]()
+    [this, slotstate]()
       {
         // clear error register and error interrupts
         _regs[Regs::Port::Serr] = 0xFFFFFFFF;
         _regs[Regs::Port::Is] = Regs::Port::Is_mask_fatal
                                 | Regs::Port::Is_mask_error;
         enable(
-          [=]()
+          [this, slotstate]()
             {
               // if all went well, reissue all commands that were
               // not aborted, otherwise abort everything

@@ -76,7 +76,7 @@ Ahci::Ahci_device::start_device_scan(Errand::Callback const &callback)
   Dbg::trace().printf("Reading device info...(infopage at %p)\n",
                       infopage->get<void>(0));
 
-  auto cb = [=] (int error, l4_size_t)
+  auto cb = [this, infopage, callback] (int error, l4_size_t)
               {
                 printf("Infopage read from device.\n");
                 infopage->unmap();
@@ -99,7 +99,7 @@ Ahci::Ahci_device::start_device_scan(Errand::Callback const &callback)
 
   // XXX should go in some kind of queue, if busy, instead of polling
   Errand::poll(10, 10000,
-               [=] ()
+               [this, infopage, callback, cb] ()
                  {
                    Fis::Taskfile task;
                    Fis::Datablock data = infopage->inout_block();
