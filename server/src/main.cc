@@ -27,7 +27,7 @@
 #include "ahci_device.h"
 #include "hba.h"
 
-#include "debug.h" // needs to come before liblock-dev includes
+#include "debug.h" // needs to come before libblock-dev includes
 #include <l4/libblock-device/block_device_mgr.h>
 #include <l4/libblock-device/virtio_client.h>
 
