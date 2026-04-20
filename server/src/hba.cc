@@ -18,17 +18,22 @@
 
 #include "hba.h"
 #include "debug.h"
+#include "icu.h"
+#include "pci.h"
 
 #if (__BYTE_ORDER == __BIG_ENDIAN)
 # error "Big endian byte order not implemented."
 #endif
 
 static Dbg trace(Dbg::Trace, "hba");
+static Dbg info(Dbg::Info, "hba");
 static Dbg warn(Dbg::Warn, "hba");
 
 namespace Ahci {
 
 bool Hba::check_address_width = true;
+bool Hba::use_msis = true;
+bool Hba::use_msixs = true;
 
 std::tuple<l4_addr_t, l4_size_t>
 Hba::get_abar_size(L4vbus::Pci_dev const &dev, l4vbus_device_t const &di)
@@ -65,8 +70,11 @@ Hba::get_abar_size(L4vbus::Pci_dev const &dev, l4vbus_device_t const &di)
 
 Hba::Hba(L4vbus::Pci_dev const &dev,
          l4vbus_device_t const &di,
+         cxx::Ref_ptr<Icu> icu,
          L4Re::Util::Shared_cap<L4Re::Dma_space> const &dma)
 : _dev(dev),
+  _pci_dev(dev),
+  _icu(icu),
   _iomem(L4::cap_reinterpret_cast<L4Re::Dataspace>(_dev.bus_cap()),
          get_abar_size(dev, di)),
   _regs(new L4drivers::Mmio_register_block<32>(_iomem.vaddr.get()))
@@ -117,6 +125,16 @@ Hba::Hba(L4vbus::Pci_dev const &dev,
         trace.printf("Port %d is disabled @0x%lx\n",
                        portno, _iomem.port_base_address(portno));
       ++portno;
+    }
+
+  // Configure PCI / PCI Express registers for MSI and MSI-X.
+  _pci_dev.detect_msi_support();
+  if (_icu->msis_supported())
+    {
+      if (Hba::use_msixs && _pci_dev.msixs_supported())
+        _pci_dev.enable_msix_pci();
+      else if (Hba::use_msis && _pci_dev.msis_supported())
+        _pci_dev.enable_msi_pci();
     }
 }
 
@@ -171,24 +189,21 @@ Hba::handle_irq()
     }
 
   if (!_irq_trigger_type)
-    obj_cap()->unmask();
+    {
+      if (_unmask_via_icu)
+        _icu->icu()->unmask(_irq);
+      else
+        obj_cap()->unmask();
+    }
+
 
   // clear all status bits
   _regs[Regs::Hba::Is] = is_clear;
 }
 
-
-void
-Hba::register_interrupt_handler(L4::Cap<L4::Icu> icu,
-                                L4Re::Util::Object_registry *registry)
+L4::Cap<L4::Irq>
+Hba::bind_irq(unsigned irq, L4Re::Util::Object_registry *registry)
 {
-  // find the interrupt
-  unsigned char polarity;
-  int irq = L4Re::chksys(_dev.irq_enable(&_irq_trigger_type, &polarity),
-                         "Enabling interrupt.");
-
-  Dbg::info().printf("Device: interrupt : %d trigger: %d, polarity: %d\n",
-                     irq, (int)_irq_trigger_type, (int)polarity);
   trace.printf("Device: interrupt status: 0x%x\n", _regs[Regs::Hba::Is].read());
 
   _regs[Regs::Hba::Ghc].clear(Regs::Hba::Ghc_ie);
@@ -197,20 +212,79 @@ Hba::register_interrupt_handler(L4::Cap<L4::Icu> icu,
   auto cap = L4Re::chkcap(registry->register_irq_obj(this),
                           "Registering IRQ server object.");
 
-  trace.printf("Binding interrupt %d...\n", irq);
-  L4Re::chksys(l4_error(icu->bind(irq, cap)), "Binding interrupt to ICU.");
+  trace.printf("Binding interrupt %#x...\n", irq);
+  auto res = l4_error(_icu->icu()->bind(irq, cap));
+  L4Re::chksys(res, "Binding interrupt to ICU.");
 
+  _irq = irq;
+  _unmask_via_icu = res == 1;
+  trace.printf("IRQ[%#x] unmask: %s\n", irq,
+               _unmask_via_icu ? "via ICU" : "direct");
+
+  return cap;
+}
+
+void
+Hba::enable_irq(unsigned irq, L4::Cap<L4::Irq> cap)
+{
   trace.printf("Unmasking interrupt...\n");
-  L4Re::chksys(l4_ipc_error(cap->unmask(), l4_utcb()),
-               "Unmasking interrupt");
+  if (_unmask_via_icu)
+    L4Re::chkipc(_icu->icu()->unmask(irq), "Unmasking interrupt");
+  else
+    L4Re::chkipc(cap->unmask(), "Unmasking interrupt");
 
   trace.printf("Enabling HBA interrupt...\n");
   _regs[Regs::Hba::Is].write(0xFFFFFFFF);
   _regs[Regs::Hba::Ghc].set(Regs::Hba::Ghc_ie);
 
-  trace.printf("Attached to interrupt %d\n", irq);
+  trace.printf("Attached to interrupt %#x\n", irq);
 }
 
+void
+Hba::register_interrupt_handler(L4Re::Util::Object_registry *registry)
+{
+  int irq = -1;
+  unsigned char polarity = 0;
+
+  if (msis_enabled())
+    {
+      long msi_vec = _icu->alloc_msi();
+      if (msi_vec >= 0)
+        {
+          trace.printf("Allocated MSI vector: %ld\n", msi_vec);
+          irq = msi_vec | L4::Icu::F_msi;
+          // assume MSIs are edge triggered
+          _irq_trigger_type = 1;
+        }
+    }
+
+  if (irq == -1)
+    // use the legacy interrupt
+    irq = L4Re::chksys(_dev.irq_enable(&_irq_trigger_type, &polarity),
+                       "Enabling legacy interrupt.");
+
+  // Register at object registry and bind IRQ at ICU.
+  auto cap = bind_irq(irq, registry);
+
+  // Setup MSI at the PCI level.
+  if (irq & L4::Icu::F_msi)
+    {
+      l4_icu_msi_info_t msi_info;
+      l4_uint64_t source = _dev.dev_handle() | L4vbus::Icu::Src_dev_handle;
+      L4Re::chksys(_icu->icu()->msi_info(irq, source, &msi_info),
+                   "Retrieving MSI info.");
+      info.printf("MSI info: vector=%#x addr=%llx, data=%#x\n", irq,
+                  msi_info.msi_addr, msi_info.msi_data);
+
+      enable_msi(irq, msi_info);
+    }
+
+  info.printf("Device: interrupt : %#x trigger: %d, polarity: %d\n",
+                     irq, (int)_irq_trigger_type, (int)polarity);
+
+  // Unmask interrupt and enable it at AHCI controller.
+  enable_irq(irq, cap);
+}
 
 bool
 Hba::is_ahci_hba(L4vbus::Device const &dev, l4vbus_device_t const &dev_info)

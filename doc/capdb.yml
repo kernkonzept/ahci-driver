@@ -93,6 +93,12 @@ cmds:
           This option sets the access to disks or partitions to read only for
           the preceding `client` option.
         type: flag
+  - name: 'nomsi'
+    desc: This option disables support for MSI interrupts.
+    type: flag
+  - name: 'nomsix'
+    desc: This option disables support for MSI-X interrupts.
+    type: flag
 text-after-cmds: |
   ## Building and Configuration
 

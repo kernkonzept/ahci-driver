@@ -23,7 +23,9 @@
 
 #include "ahci_port.h"
 #include "ahci_types.h"
+#include "icu.h"
 #include "iomem.h"
+#include "pci.h"
 
 namespace Ahci {
 
@@ -40,6 +42,7 @@ public:
    */
   Hba(L4vbus::Pci_dev const &dev,
       l4vbus_device_t const &di,
+      cxx::Ref_ptr<Icu> icu,
       L4Re::Util::Shared_cap<L4Re::Dma_space> const &dma);
 
   Hba(Hba const &) = delete;
@@ -75,8 +78,7 @@ public:
    *
    * \throws L4::Runtime_error Resources are not available or accessible.
    */
-  void register_interrupt_handler(L4::Cap<L4::Icu> icu,
-                                  L4Re::Util::Object_registry *registry);
+  void register_interrupt_handler(L4Re::Util::Object_registry *registry);
 
 
   /**
@@ -108,35 +110,65 @@ public:
    * 4GB anyway, so this flag may be used to explicitly skip this check.
    */
   static bool check_address_width;
+  static bool use_msis;
+  static bool use_msixs;
+
 private:
-  l4_uint32_t cfg_read(l4_uint32_t reg) const
+  bool msis_enabled() const
   {
-    l4_uint32_t val;
-    L4Re::chksys(_dev.cfg_read(reg, &val, 32));
-
-    return val;
+    return _icu->msis_supported()
+           && ((use_msixs && _pci_dev.msixs_supported())
+               || (use_msis && _pci_dev.msis_supported()));
   }
 
-  l4_uint16_t cfg_read_16(l4_uint32_t reg) const
+  bool enable_msi(int irq, l4_icu_msi_info_t msi_info)
   {
-    l4_uint32_t val;
-    L4Re::chksys(_dev.cfg_read(reg, &val, 16));
+    if (!(irq & L4::Icu::F_msi))
+      return false;
 
-    return val;
+    if (use_msixs && _pci_dev.msixs_supported())
+      _pci_dev.enable_msix(irq, msi_info);
+    else if (use_msis && _pci_dev.msis_supported())
+      _pci_dev.enable_msi(irq, msi_info);
+
+    return true;
   }
 
-  void cfg_write_16(l4_uint32_t reg, l4_uint16_t val)
+  L4::Cap<L4::Irq> bind_irq(unsigned irq, L4Re::Util::Object_registry *registry);
+
+  void enable_irq(unsigned irq, L4::Cap<L4::Irq> cap);
+
+  l4_uint32_t cfg_read(l4_uint32_t reg, char const *extra = "") const
   {
-    L4Re::chksys(_dev.cfg_write(reg, val, 16));
+    return _pci_dev.cfg_read_32(reg, extra);
+  }
+
+  l4_uint16_t cfg_read_16(l4_uint32_t reg, char const *extra = "") const
+  {
+    return _pci_dev.cfg_read_16(reg, extra);
+  }
+
+  void cfg_write(l4_uint32_t reg, l4_uint32_t val, char const *extra = "")
+  {
+    _pci_dev.cfg_write_32(reg, val, extra);
+  }
+
+  void cfg_write_16(l4_uint32_t reg, l4_uint16_t val, char const *extra = "")
+  {
+    _pci_dev.cfg_write_16(reg, val, extra);
   }
 
   std::tuple<l4_addr_t, l4_size_t>
   get_abar_size(L4vbus::Pci_dev const &dev, l4vbus_device_t const &di);
 
   L4vbus::Pci_dev _dev;
+  Pci_dev _pci_dev;
+  cxx::Ref_ptr<Icu> _icu;
   Iomem _iomem;
   L4drivers::Register_block<32> _regs;
+  unsigned _irq;
   unsigned char _irq_trigger_type;
+  bool _unmask_via_icu;
   std::vector<Ahci_port> _ports;
 };
 

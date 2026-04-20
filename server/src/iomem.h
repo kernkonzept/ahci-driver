@@ -6,9 +6,9 @@
  */
 #pragma once
 
+#include <l4/re/dataspace>
 #include <l4/re/env>
 #include <l4/re/error_helper>
-#include <l4/re/dataspace>
 #include <l4/re/rm>
 
 #include <tuple>
@@ -38,6 +38,10 @@ struct Iomem
   Iomem(L4::Cap<L4Re::Dataspace> iocap, std::tuple<l4_addr_t, l4_size_t> abar)
   : Iomem(iocap, std::get<0>(abar), std::get<1>(abar))
   {}
+
+  Iomem() = default;
+  Iomem(Iomem &&mem) = default;
+  Iomem& operator=(Iomem &&mem) = default;
 
   l4_addr_t port_base_address(unsigned num) const
   {

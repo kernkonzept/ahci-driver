@@ -26,13 +26,14 @@
 #include "ahci_port.h"
 #include "ahci_device.h"
 #include "hba.h"
+#include "icu.h"
 
 #include "debug.h" // needs to come before libblock-dev includes
 #include <l4/libblock-device/block_device_mgr.h>
 #include <l4/libblock-device/virtio_client.h>
 
 static char const *const usage_str =
-"Usage: %s [-vqA] [--client CAP --device UUID [--ds-max NUM] [--readonly]]\n\n"
+"Usage: %s [-vqA] [--client CAP --device UUID [--ds-max NUM] [--readonly]] [--nomsi] [--nomsix]\n\n"
 "Options:\n"
 " -v   Verbose mode.\n"
 " -q   Quiet mode (do not print any warnings).\n"
@@ -41,7 +42,9 @@ static char const *const usage_str =
 " --client CAP    Add a static client via the CAP capability\n"
 " --device UUID   Specify the UUID of the device or partition\n"
 " --ds-max NUM    Specify maximum number of dataspaces the client can register\n"
-" --readonly      Only allow readonly access to the device\n";
+" --readonly      Only allow readonly access to the device\n"
+" --nomsi         Disable support for MSI interrupts\n"
+" --nomsix        Disable support for MSI-X interrupts\n";
 
 struct Ahci_device_factory
 {
@@ -278,6 +281,8 @@ parse_args(int argc, char *const *argv)
     OPT_DS_MAX,
     OPT_SLOT_MAX,
     OPT_READONLY,
+    OPT_NOMSI,
+    OPT_NOMSIX,
   };
 
   struct option const loptions[] =
@@ -290,6 +295,8 @@ parse_args(int argc, char *const *argv)
     { "ds-max",        required_argument, NULL,  OPT_DS_MAX },
     { "slot-max",      required_argument, NULL,  OPT_SLOT_MAX },
     { "readonly",      no_argument,       NULL,  OPT_READONLY },
+    { "nomsi",         no_argument,       NULL,  OPT_NOMSI },
+    { "nomsix",        no_argument,       NULL,  OPT_NOMSIX },
     { 0, 0, 0, 0 },
   };
 
@@ -333,6 +340,12 @@ parse_args(int argc, char *const *argv)
           break;
         case OPT_READONLY:
           opts.readonly = true;
+          break;
+        case OPT_NOMSI:
+          Ahci::Hba::use_msis = false;
+          break;
+        case OPT_NOMSIX:
+          Ahci::Hba::use_msixs = false;
           break;
         default:
           Dbg::warn().printf(usage_str, argv[0]);
@@ -383,7 +396,7 @@ create_dma_space(L4::Cap<L4vbus::Vbus> bus, long unsigned id)
 }
 
 static void
-device_discovery(L4::Cap<L4vbus::Vbus> bus, L4::Cap<L4::Icu> icu)
+device_discovery(L4::Cap<L4vbus::Vbus> bus, cxx::Ref_ptr<Ahci::Icu> icu)
 {
   Dbg::info().printf("Starting device discovery.\n");
 
@@ -420,9 +433,9 @@ device_discovery(L4::Cap<L4vbus::Vbus> bus, L4::Cap<L4::Icu> icu)
 
           try
             {
-              auto hba = cxx::make_unique<Ahci::Hba>(child, di,
+              auto hba = cxx::make_unique<Ahci::Hba>(child, di, icu,
                                                      create_dma_space(bus, id));
-              hba->register_interrupt_handler(icu, server.registry());
+              hba->register_interrupt_handler(server.registry());
               _hbas.push_back(cxx::move(hba));
             }
           catch (L4::Runtime_error const &e)
@@ -460,10 +473,11 @@ setup_hardware()
   L4vbus::Icu icudev;
   L4Re::chksys(vbus->root().device_by_hid(&icudev, "L40009"),
                "Look for ICU device.");
-  auto icu = L4Re::chkcap(L4Re::Util::cap_alloc.alloc<L4::Icu>(),
-                          "Allocate ICU capability.");
-  L4Re::chksys(icudev.vicu(icu), "Request ICU capability.");
+  auto icu_cap = L4Re::chkcap(L4Re::Util::cap_alloc.alloc<L4::Icu>(),
+                              "Allocate ICU capability.");
+  L4Re::chksys(icudev.vicu(icu_cap), "Request ICU capability.");
 
+  auto icu = cxx::make_ref_obj<Ahci::Icu>(icu_cap);
   device_discovery(vbus, icu);
 }
 

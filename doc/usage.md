@@ -125,6 +125,18 @@ line options:
 
     Flag. True if provided.
 
+* `--nomsi`
+
+  This option disables support for MSI interrupts.
+
+  Flag. True if provided.
+
+* `--nomsix`
+
+  This option disables support for MSI-X interrupts.
+
+  Flag. True if provided.
+
 ## Building and Configuration
 
 The AHCI driver can be built using the L4Re build system. Just place this
