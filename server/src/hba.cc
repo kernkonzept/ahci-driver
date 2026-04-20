@@ -24,7 +24,7 @@
 #endif
 
 static Dbg trace(Dbg::Trace, "hba");
-static Dbg warn(Dbg::Trace, "hba");
+static Dbg warn(Dbg::Warn, "hba");
 
 namespace Ahci {
 
