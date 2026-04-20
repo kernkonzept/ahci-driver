@@ -23,6 +23,7 @@
 
 #include "ahci_port.h"
 #include "ahci_types.h"
+#include "iomem.h"
 
 namespace Ahci {
 
@@ -33,45 +34,6 @@ namespace Ahci {
  */
 class Hba : public L4::Irqep_t<Hba>
 {
-private:
-  /**
-   * Self-attaching IO memory.
-   */
-  struct Iomem
-  {
-    L4Re::Rm::Unique_region<l4_addr_t> vaddr;
-    l4_size_t size;
-
-    Iomem(L4::Cap<L4Re::Dataspace> iocap, std::tuple<l4_addr_t, l4_size_t> abar)
-    {
-      size = std::get<1>(abar);
-      L4Re::chksys(L4Re::Env::env()->rm()->attach(&vaddr, size,
-                                                  L4Re::Rm::F::Search_addr
-                                                  | L4Re::Rm::F::Cache_uncached
-                                                  | L4Re::Rm::F::RW,
-                                                  L4::Ipc::make_cap_rw(iocap),
-                                                  std::get<0>(abar),
-                                                  L4_PAGESHIFT));
-    }
-
-    l4_addr_t port_base_address(unsigned num) const
-    {
-      return vaddr.get() + Port_base + Port_size * num;
-    }
-
-    unsigned max_ports() const
-    {
-      unsigned ports = (size - Port_base) / Port_size;
-      return cxx::min(ports, 32U);
-    }
-
-    enum Mem_config
-    {
-      Port_base = 0x100,
-      Port_size = 0x80,
-    };
- };
-
 public:
   /**
    * Create a new AHCI HBA from a vbus PCI device.
