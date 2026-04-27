@@ -243,7 +243,7 @@ Hba::enable_irq(unsigned irq, L4::Cap<L4::Irq> cap)
 void
 Hba::register_interrupt_handler(L4Re::Util::Object_registry *registry)
 {
-  int irq = -1;
+  long irq = -1;
   unsigned char polarity = 0;
 
   if (msis_enabled())
@@ -273,13 +273,13 @@ Hba::register_interrupt_handler(L4Re::Util::Object_registry *registry)
       l4_uint64_t source = _dev.dev_handle() | L4vbus::Icu::Src_dev_handle;
       L4Re::chksys(_icu->icu()->msi_info(irq, source, &msi_info),
                    "Retrieving MSI info.");
-      info.printf("MSI info: vector=%#x addr=%llx, data=%#x\n", irq,
+      info.printf("MSI info: vector=%#lx addr=%llx, data=%#x\n", irq,
                   msi_info.msi_addr, msi_info.msi_data);
 
       enable_msi(irq, msi_info);
     }
 
-  info.printf("Device: interrupt : %#x trigger: %d, polarity: %d\n",
+  info.printf("Device: interrupt : %#lx trigger: %d, polarity: %d\n",
                      irq, (int)_irq_trigger_type, (int)polarity);
 
   // Unmask interrupt and enable it at AHCI controller.
